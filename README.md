@@ -17,7 +17,7 @@ A Flutter application demonstrating object detection using TensorFlow Lite via t
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/dhyash-simform/object_detection.git
+   git clone https://github.com/srivass2/RealTime-Object-Detection-Flutter.git
    cd object_detection
    ```
 
@@ -88,4 +88,5 @@ A Flutter library to render SVG (Scalable Vector Graphics) files directly in the
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.h
+
 
