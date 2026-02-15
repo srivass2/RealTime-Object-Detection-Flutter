@@ -24,8 +24,16 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.tensorflow_demo"
-    compileSdkVersion 34
+    compileSdkVersion 36
     ndkVersion flutter.ndkVersion
+
+    configurations.all {
+    exclude group: "org.tensorflow", module: "tensorflow-lite"
+    exclude group: "org.tensorflow", module: "tensorflow-lite-api"
+    exclude group: "org.tensorflow", module: "tensorflow-lite-gpu"
+    exclude group: "org.tensorflow", module: "tensorflow-lite-support"
+}
+
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -46,6 +54,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion 26
+        targetSdkVersion 36
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

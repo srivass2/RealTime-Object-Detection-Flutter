@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# --- Models / artifacts (keep in Drive, not Git) ---
+android/app/src/main/assets/*.tflite
+assets/model/*.tflite
+assets/model/*.bin
+ios/*.mlpackage
+ios/*.mlpackage/
+ios/*.mlmodel
+ios/*.mlmodelc
+ios/*.mlpackage.zip
+ios/*.zip

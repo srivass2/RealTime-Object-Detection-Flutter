@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
-
+import 'package:tensorflow_demo/config/detector_config.dart';
+import 'package:ultralytics_yolo/ultralytics_yolo.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -12,6 +13,8 @@ import 'package:tensorflow_demo/services/detector.dart';
 import 'package:tensorflow_demo/services/navigation_service.dart';
 import 'package:tensorflow_demo/values/app_routes.dart';
 import 'package:tensorflow_demo/widgets/box_widget.dart';
+import 'dart:io' show  Platform;
+
 
 class LiveObjectDetectionScreen extends StatefulWidget {
   const LiveObjectDetectionScreen({super.key});
@@ -47,21 +50,81 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
   List<DetectedObjectDm>? detectedObjectList;
 
   @override
-  void initState() {
-    super.initState();
-    _appLifecycleListener = AppLifecycleListener(
-      onResume: _init,
-      onInactive: () {
-        _cameraController?.stopImageStream();
-        _objectDetectorStream?.cancel();
-        _detector?.stop();
-      },
-    );
-    _init();
+void initState() {
+  super.initState();
+
+  // If YOLO is selected, we do NOT start camera_controller + Detector isolate.
+  // YOLOView manages its own camera pipeline.
+  if (DetectorConfig.backend == DetectorBackend.yolo) {
+    return;
   }
+
+  _appLifecycleListener = AppLifecycleListener(
+    onResume: _init,
+    onInactive: () {
+      _cameraController?.stopImageStream();
+      _objectDetectorStream?.cancel();
+      _detector?.stop();
+    },
+  );
+
+  _init();
+}
+
+
 
   @override
   Widget build(BuildContext context) {
+    
+    if (DetectorConfig.backend == DetectorBackend.yolo) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Live Object Detection')),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            YOLOView(
+                modelPath: Platform.isIOS ? 'yolo11n' : 'yolo11n.tflite',
+              //modelPath: 'yolo11n.tflite',
+              //modelPath: assets/model/yolo11n.tflite,
+              //modelPath: _yoloModelPath!,
+              
+
+
+              task: YOLOTask.detect,
+              onResult: (results) {
+                log('YOLO results: ${results.length}');
+
+                // Optional: log a few results
+                // print('YOLO found: ${results.length}');
+              },
+            ),
+
+            // Your tiny backend label
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  DetectorConfig.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final controller = _cameraController;
     return Scaffold(
       appBar: AppBar(title: const Text('Live Object Detection')),
@@ -76,10 +139,31 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
                     children: [
                       CameraPreview(controller),
                       // Bounding boxes
+
                       ...?detectedObjectList?.map(
                         (detectedObject) => Positioned.fromRect(
                           rect: detectedObject.renderLocation,
                           child: BoxWidget.fromDetectedObject(detectedObject),
+                        ),
+                      ),
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            DetectorConfig.label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -143,7 +227,11 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
   @override
   void dispose() {
     super.dispose();
-    _appLifecycleListener.dispose();
+    // Only dispose if it was created (TFLite mode).
+    try {
+      _appLifecycleListener.dispose();
+    } catch (_) {}
+
     _cameraController?.dispose();
     _objectDetectorStream?.cancel();
     _detector?.stop();
@@ -183,9 +271,20 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
       enableAudio: false,
     );
     await _cameraController?.initialize();
+    final s = _cameraController?.value.previewSize;
+    print('CAMERA previewSize = $s');
+
   }
 
   Future<void> _initializeDetector() async {
+    // For now this repo only has TFLite implemented via Detector.start().
+    // If you pass yolo/mlkit, we show the label but fallback to TFLite.
+    if (DetectorConfig.backend != DetectorBackend.tflite) {
+      message =
+          '${DetectorConfig.label} not implemented yet in this repo. Using TFLite.';
+      if (mounted) setState(() {});
+    }
+
     final detector = await Detector.start();
     setState(() {
       _detector = detector;
