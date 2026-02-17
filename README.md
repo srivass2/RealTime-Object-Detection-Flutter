@@ -1,4 +1,4 @@
-```
+`
 **Flutter Real-Time Goal Detection – POC Environment Specification**
 
 1. Project Overview                                    Parameter	Details
@@ -63,9 +63,10 @@
         Model Format(iOS)                               **CoreML.mlpackage**
         Model Format(Android)                           **.TFlite**
         Training Platform	                            **Google Colab**
-```
+`
 	
 	
+
 
 
 
