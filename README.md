@@ -1,5 +1,5 @@
-`
-**Flutter Real-Time Goal Detection – POC Environment Specification**
+
+`**Flutter Real-Time Goal Detection – POC Environment Specification**`
 
 1. Project Overview                                    Parameter	Details
     1.1 Project Name	                                **Flare Player**
@@ -66,6 +66,7 @@
 `
 	
 	
+
 
 
 
