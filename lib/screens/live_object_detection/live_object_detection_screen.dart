@@ -13,6 +13,8 @@ import 'package:tensorflow_demo/services/detector.dart';
 import 'package:tensorflow_demo/services/navigation_service.dart';
 import 'package:tensorflow_demo/values/app_routes.dart';
 import 'package:tensorflow_demo/widgets/box_widget.dart';
+import 'package:flutter/services.dart';
+
 import 'dart:io' show  Platform;
 
 
@@ -56,6 +58,10 @@ void initState() {
   // If YOLO is selected, we do NOT start camera_controller + Detector isolate.
   // YOLOView manages its own camera pipeline.
   if (DetectorConfig.backend == DetectorBackend.yolo) {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     return;
   }
 
@@ -226,7 +232,14 @@ void initState() {
 
   @override
   void dispose() {
-    super.dispose();
+
+    // Restore orientations for the rest of the app
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+    
     // Only dispose if it was created (TFLite mode).
     try {
       _appLifecycleListener.dispose();
@@ -235,6 +248,9 @@ void initState() {
     _cameraController?.dispose();
     _objectDetectorStream?.cancel();
     _detector?.stop();
+
+
+    super.dispose();
   }
 
   Future<void> _init() async {
