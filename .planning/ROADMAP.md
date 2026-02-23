@@ -28,7 +28,7 @@ feasible on-device at acceptable performance on the YOLO pipeline (iOS and Andro
 
 ---
 
-- [ ] **Phase 6: Overlay Foundation** - Validate that a Flutter overlay renders correctly above YOLOView on both platforms and that ball center-point coordinates are accurate
+- [x] **Phase 6: Overlay Foundation** - Validate that a Flutter overlay renders correctly above YOLOView on both platforms and that ball center-point coordinates are accurate
 - [ ] **Phase 7: Trail Accumulation and Rendering** - Build BallTracker and TrailOverlay — bounded position queue, occlusion handling, fading dot trail on YOLO path
 - [ ] **Phase 8: Polish** - Add evaluator-facing status overlays that communicate tracking state
 
@@ -46,7 +46,7 @@ feasible on-device at acceptable performance on the YOLO pipeline (iOS and Andro
 **Plans:** 2 plans
 Plans:
 - [x] 06-01-PLAN.md — Implement debug dot overlay on YOLO path (coordinate extraction, native overlay suppression, mounted guards)
-- [ ] 06-02-PLAN.md — Device verification checkpoint (confirm dot accuracy on iPhone 12 and Galaxy A32)
+- [x] 06-02-PLAN.md — Device verification checkpoint (confirm dot accuracy on iPhone 12 and Galaxy A32)
 
 ### Phase 7: Trail Accumulation and Rendering
 **Goal**: The ball leaves a fading dot-and-line trail as it moves across the screen — the trail pauses when the ball is lost and resumes with a visible gap on re-detection — on the YOLO path in landscape orientation
@@ -73,6 +73,6 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Overlay Foundation | v1.1 | 1/2 | In progress (dot offset fix needed) | - |
+| 6. Overlay Foundation | v1.1 | 2/2 | Complete | 2026-02-23 |
 | 7. Trail Accumulation and Rendering | v1.1 | 0/TBD | Not started | - |
 | 8. Polish | v1.1 | 0/TBD | Not started | - |
