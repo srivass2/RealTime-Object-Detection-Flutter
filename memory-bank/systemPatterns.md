@@ -2,7 +2,7 @@
 
 ## High-Level Architecture
 
-The app supports two fully independent detection pipelines, selected at build time via `DETECTOR_BACKEND`. They share only the outer shell (routing, home screen, navigation service).
+The app supports two detection pipelines, selected at build time via `DETECTOR_BACKEND`. They share only the outer shell (routing, home screen, navigation service). The SSD/TFLite path is frozen (no new development); all active work targets the YOLO path.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -16,6 +16,7 @@ The app supports two fully independent detection pipelines, selected at build ti
    │  TensorflowSvc  │   │   ultralytics_yolo    │
    │  (SSD MobileNet)│   │   (YOLO11n)           │
    │  Singleton      │   │   Platform-native     │
+   │  FROZEN         │   │   ACTIVE              │
    └────────┬────────┘   └──────────┬───────────┘
             │                       │
             ▼                       ▼
@@ -23,13 +24,35 @@ The app supports two fully independent detection pipelines, selected at build ti
    │  Detector       │   │  YOLOView widget      │
    │  (Isolate)      │   │  (self-contained)     │
    └────────┬────────┘   └──────────┬───────────┘
-            │                       │
+            │                       │ onResult(List<YOLOResult>)
             ▼                       ▼
    ┌─────────────────┐   ┌──────────────────────┐
-   │  BoxWidget      │   │  onResult callback    │
-   │  overlays on    │   │  (currently only      │
-   │  CameraPreview  │   │   logging count)      │
-   └─────────────────┘   └──────────────────────┘
+   │  BoxWidget      │   │  _pickBestBallYolo()  │
+   │  overlays on    │   │  (priority filter +   │
+   │  CameraPreview  │   │   nearest-neighbor)   │
+   └─────────────────┘   └──────────┬───────────┘
+                                    │ Offset (normalized)
+                                    ▼
+                         ┌──────────────────────┐
+                         │  BallTracker         │
+                         │  (service — no        │
+                         │   Flutter deps)       │
+                         │  • bounded ListQueue  │
+                         │  • occlusion sentinel │
+                         │  • 30-frame auto-reset│
+                         │  • min-dist dedup     │
+                         └──────────┬───────────┘
+                                    │ trail: List<TrackedPosition>
+                                    ▼
+                         ┌──────────────────────┐
+                         │  TrailOverlay         │
+                         │  (CustomPainter)      │
+                         │  • fading orange dots │
+                         │  • connecting lines   │
+                         │  • occlusion gaps     │
+                         │  • YoloCoordUtils     │
+                         │    (FILL_CENTER crop) │
+                         └──────────────────────┘
 ```
 
 ---
@@ -99,29 +122,94 @@ modelPath: Platform.isIOS ? 'yolo11n' : 'yolo11n.tflite'
 - iOS: `'yolo11n'` → `ultralytics_yolo` loads this as a Core ML mlpackage from the Xcode bundle
 - Android: `'yolo11n.tflite'` → package loads from `android/app/src/main/assets/`
 
+### 8. Custom Painter Overlay — YOLO Trail
+The ball trail renders as a `CustomPainter` layered above `YOLOView` using a `Stack`:
+```dart
+Stack(
+  fit: StackFit.expand,
+  children: [
+    YOLOView(..., showOverlays: false, onResult: ...),
+    RepaintBoundary(
+      child: IgnorePointer(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: TrailOverlay(trail: _tracker.trail, ...),
+        ),
+      ),
+    ),
+    // Badge overlays (Positioned widgets)
+  ],
+)
+```
+Key constraints:
+- `showOverlays: false` suppresses native YOLO bounding boxes
+- `RepaintBoundary` isolates repaint to the overlay layer only
+- `IgnorePointer` prevents the overlay from consuming touch events
+- `TrailOverlay.shouldRepaint` always returns `true` (list identity is unreliable)
+
+### 9. Normalized Coordinate + FILL_CENTER Crop Correction
+YOLO detection coordinates are normalized to [0.0, 1.0] relative to the **full camera frame**. `YOLOView` renders using FILL_CENTER (BoxFit.cover): the camera preview is scaled to fill the widget, cropping one dimension. `YoloCoordUtils.toCanvasPixel()` corrects for this crop:
+```dart
+if (widgetAR > cameraAspectRatio) {
+  // Widget wider → scaled by width, height cropped
+  final scaledHeight = size.width / cameraAspectRatio;
+  final cropY = (scaledHeight - size.height) / 2.0;
+  pixelX = normalized.dx * size.width;
+  pixelY = normalized.dy * scaledHeight - cropY;
+} else {
+  // Widget taller → scaled by height, width cropped
+  final scaledWidth = size.height * cameraAspectRatio;
+  final cropX = (scaledWidth - size.width) / 2.0;
+  pixelX = normalized.dx * scaledWidth - cropX;
+  pixelY = normalized.dy * size.height;
+}
+```
+**Camera AR = 4:3** (not 16:9). `ultralytics_yolo` uses `.photo` session preset on iOS (4032×3024). Using 16:9 here causes a ~10% Y-axis upward offset in landscape mode.
+
 ---
 
-## Data Flow: YOLO Live Detection (Primary Path)
+## Data Flow: YOLO Live Detection (Primary Path — Active)
 
 ```
 Physical camera hardware
         │
         ▼
   YOLOView widget (ultralytics_yolo)
-  ├── manages camera session internally
+  ├── manages camera session internally (.photo preset → 4032×3024 on iOS)
   ├── feeds frames to YOLO11n model
   │     ├── Android: TFLite runtime
   │     └── iOS: Core ML runtime
   ├── runs inference per frame
-  └── fires onResult(List<DetectionResult>)
+  └── fires onResult(List<YOLOResult>)
             │
             ▼
       onResult callback in LiveObjectDetectionScreen
-      └── currently: log('YOLO results: ${results.length}')
-              (no bounding box rendering yet in YOLO mode)
+      ├── if (!mounted) return   (setState-after-dispose guard)
+      ├── _pickBestBallYolo(results)
+      │     ├── filter: keep 'Soccer ball' (priority 0) and 'ball' (priority 1), reject 'tennis-ball'
+      │     ├── sort by priority, then confidence within same class
+      │     └── tiebreak multiple same-priority candidates by nearest-to-lastKnownPosition
+      └── setState(() {
+            ball != null → _tracker.update(normalizedCenter)
+            ball == null → _tracker.markOccluded()
+          })
+                    │
+                    ▼
+              BallTracker
+              ├── update(): dedup, append TrackedPosition, prune expired
+              ├── markOccluded(): increment miss count, insert sentinel, auto-reset at 30 frames
+              └── trail getter → List<TrackedPosition> (unmodifiable snapshot)
+                          │
+                          ▼
+                    TrailOverlay (CustomPainter)
+                    ├── connecting lines between non-occluded consecutive positions
+                    │     (opacity fades with age, orange)
+                    └── dots at each non-occluded position
+                          (radius 2–7px, opacity fades with age, orange)
+                          via YoloCoordUtils.toCanvasPixel() (FILL_CENTER crop correction)
 ```
 
-## Data Flow: TFLite Live Detection (Fallback Path)
+## Data Flow: TFLite Live Detection (Fallback Path — Frozen)
 
 ```
 camera plugin → CameraController
@@ -190,7 +278,7 @@ NavigationService (singleton) wraps Navigator for programmatic routing.
 | LiveObjectDetectionScreen | Portrait + Landscape | Landscape only (forced in initState) |
 | PhotoAnalyzeScreen | Portrait + Landscape | Portrait + Landscape |
 
-YOLO mode forces landscape in `initState` and restores portrait+landscape on `dispose`.
+YOLO mode forces landscape in `initState` and restores portrait+landscape on `dispose`. `_tracker.reset()` is called in `dispose` before orientation restore.
 
 ---
 
@@ -203,6 +291,11 @@ YOLO mode forces landscape in `initState` and restores portrait+landscape on `di
 | Route definitions | `lib/values/app_routes.dart`, `lib/routes.dart` |
 | App root | `lib/app.dart` |
 | YOLO live screen | `lib/screens/live_object_detection/live_object_detection_screen.dart` |
+| YOLO trail painter | `lib/screens/live_object_detection/widgets/trail_overlay.dart` |
+| YOLO debug dot painter | `lib/screens/live_object_detection/widgets/debug_dot_overlay.dart` |
+| Ball tracker service | `lib/services/ball_tracker.dart` |
+| Trail position model | `lib/models/tracked_position.dart` |
+| YOLO coordinate utilities | `lib/utils/yolo_coord_utils.dart` |
 | TFLite isolate server | `lib/services/detector.dart` |
 | TFLite model service | `lib/services/tensorflow_service.dart` |
 | TFLite inference helpers | `lib/utils/tensorflow_helper.dart` |
@@ -213,4 +306,4 @@ YOLO mode forces landscape in `initState` and restores portrait+landscape on `di
 | API client | `lib/apibase/api_service.dart`, `api_service_type.dart` |
 | Constants | `lib/values/app_constants.dart` |
 | Navigation | `lib/services/navigation_service.dart` |
-| Bounding box widget | `lib/widgets/box_widget.dart` |
+| Bounding box widget (TFLite path) | `lib/widgets/box_widget.dart` |

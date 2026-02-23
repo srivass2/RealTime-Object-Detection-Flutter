@@ -112,10 +112,11 @@ Generated file types:
 - Supported orientations: portrait + landscape
 
 ### iOS
-- `Info.plist`: Camera usage description set (placeholder text), Photo Library usage description set
+- `Info.plist`: Camera usage description set (placeholder text — must update before external demo), Photo Library usage description set
 - Model location: `ios/yolo11n.mlpackage` (gitignored), added to Xcode target → Build Phases → Copy Bundle Resources
 - Supported orientations: portrait + landscape (left + right)
 - Xcode build reference: `9883D8872F43899800AEC4E1 /* yolo11n.mlpackage in Resources */`
+- **Camera session preset:** `ultralytics_yolo` plugin uses `.photo` preset → camera captures at 4032×3024 (4:3 aspect ratio). This is critical for FILL_CENTER coordinate mapping — using 16:9 causes ~10% Y-axis offset.
 
 ## Asset Structure (Committed to Repo)
 ```
@@ -123,8 +124,7 @@ assets/
 ├── model/
 │   └── ssd_mobilenet_v1.tflite     # SSD fallback model only
 ├── label/
-│   ├── labels.txt                  # 91 COCO classes (used by SSD path)
-│   └── Trained_labels.txt          # Orphaned file — NOT used by YOLO path
+│   └── labels.txt                  # 91 COCO classes (used by SSD path)
 └── vectors/
     ├── camera.svg
     ├── gallery.svg
@@ -132,6 +132,7 @@ assets/
     ├── refresh-circle.svg
     └── repeat.svg
 ```
+Note: `assets/label/Trained_labels.txt` was deleted (commit `0d9bab2`) — it was an orphaned file from an earlier dataset iteration and was never referenced in code.
 
 ## Files That Must Be Placed Manually (Gitignored)
 | File | Platform | Where to place |
