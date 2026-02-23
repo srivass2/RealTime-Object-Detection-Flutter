@@ -19,13 +19,14 @@ import 'package:flutter/material.dart';
 class DebugDotPainter extends CustomPainter {
   final Offset? dotPosition;
 
-  /// Camera sensor aspect ratio (width / height). Defaults to 16:9 which is
-  /// the standard video capture ratio on iPhone 12 and Galaxy A32.
+  /// Camera sensor aspect ratio (width / height). Defaults to 4:3 because the
+  /// `ultralytics_yolo` plugin uses `.photo` session preset on iOS, which
+  /// captures at 4032×3024 (4:3). See YOLOView.swift line 382.
   final double cameraAspectRatio;
 
   const DebugDotPainter({
     required this.dotPosition,
-    this.cameraAspectRatio = 16.0 / 9.0,
+    this.cameraAspectRatio = 4.0 / 3.0,
   });
 
   @override

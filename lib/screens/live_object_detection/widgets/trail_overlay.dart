@@ -33,14 +33,15 @@ class TrailOverlay extends CustomPainter {
   /// passed to the tracker so opacity calculations are consistent.
   final Duration trailWindow;
 
-  /// Camera sensor aspect ratio (width / height). Defaults to 16:9 which
-  /// covers iPhone 12 and Galaxy A32 standard video capture modes.
+  /// Camera sensor aspect ratio (width / height). Defaults to 4:3 because the
+  /// `ultralytics_yolo` plugin uses `.photo` session preset on iOS, which
+  /// captures at 4032×3024 (4:3). See YOLOView.swift line 382.
   final double cameraAspectRatio;
 
   const TrailOverlay({
     required this.trail,
     required this.trailWindow,
-    this.cameraAspectRatio = 16.0 / 9.0,
+    this.cameraAspectRatio = 4.0 / 3.0,
   });
 
   @override

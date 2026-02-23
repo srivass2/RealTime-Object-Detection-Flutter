@@ -10,9 +10,10 @@ import 'dart:ui' show Offset, Size;
 /// to the full uncropped camera frame, so the crop offset must be subtracted
 /// when converting to widget-local pixel coordinates.
 ///
-/// This math is extracted verbatim from [DebugDotPainter.paint()] — it was
-/// verified on iPhone 12 in Phase 6 and must not be modified without
-/// re-validating on device.
+/// This math is extracted from [DebugDotPainter.paint()] and verified on
+/// iPhone 12 in Phase 6. The camera aspect ratio MUST match the plugin's
+/// session preset: `.photo` on iOS → 4:3 (4032×3024). Using 16:9 here
+/// causes a ~10% upward Y-offset in landscape mode.
 class YoloCoordUtils {
   YoloCoordUtils._();
 

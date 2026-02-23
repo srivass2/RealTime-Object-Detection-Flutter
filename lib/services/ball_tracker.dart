@@ -26,6 +26,12 @@ class BallTracker {
   /// Resets [_consecutiveMissedFrames] to zero and clears [_history].
   static const int autoResetThreshold = 30;
 
+  /// Minimum squared-distance (in normalized coordinates) between consecutive
+  /// trail positions. If the new position is closer than this to the last
+  /// recorded position, it is silently dropped to prevent dot-clustering
+  /// during slow ball movement. 0.005² = 0.000025 ≈ 0.5% of frame.
+  static const double _minDistSq = 0.000025;
+
   final _history = ListQueue<TrackedPosition>();
 
   /// Counts consecutive frames where no ball was detected.
@@ -62,10 +68,24 @@ class BallTracker {
 
   /// Called when a ball IS detected in the current frame.
   ///
-  /// Resets the consecutive-miss counter, appends the new position, then
-  /// prunes expired entries.
+  /// Resets the consecutive-miss counter. If the new position is very close
+  /// to the last recorded position (within [_minDistSq]), the position is
+  /// dropped to avoid dot-clustering during slow movement. Otherwise appends
+  /// the new position, then prunes expired entries.
   void update(Offset normalizedCenter) {
     _consecutiveMissedFrames = 0;
+
+    // De-duplicate: skip if the ball barely moved since last recorded point.
+    if (_history.isNotEmpty && !_history.last.isOccluded) {
+      final last = _history.last.normalizedCenter;
+      final dx = normalizedCenter.dx - last.dx;
+      final dy = normalizedCenter.dy - last.dy;
+      if (dx * dx + dy * dy < _minDistSq) {
+        _prune();
+        return;
+      }
+    }
+
     _history.addLast(
       TrackedPosition(
         normalizedCenter: normalizedCenter,
