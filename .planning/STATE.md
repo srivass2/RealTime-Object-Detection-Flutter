@@ -10,24 +10,24 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 6 of 8 (Overlay Foundation)
-Plan: — of — in current phase
-Status: Ready to plan
-Last activity: 2026-02-23 — Roadmap created for v1.1 Ball Tracking
+Plan: 2 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-23 — Completed 06-01 debug dot overlay implementation
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 1
+- Average duration: 3 min
+- Total execution time: 3 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 06-overlay-foundation | 1/2 | 3 min | 3 min |
 
 ## Accumulated Context
 
@@ -37,6 +37,11 @@ Progress: [░░░░░░░░░░] 0%
 - [v1.0]: Landscape lock on YOLO screen is a matched initState/dispose pair — do not break
 - [v1.1]: Phase 6 is a mandatory correctness gate — do not start trail accumulation (Phase 7) until coordinates are proven accurate on both devices
 - [v1.1]: `showOverlays: false` on YOLOView must be verified in pub-cache source before writing any trail code
+- [06-01]: DebugDotPainter is public (not file-private) since it lives in a separate file from the screen
+- [06-01]: RepaintBoundary wraps CustomPaint for correct repaint isolation — not the other way around
+- [06-01]: showOverlays: false confirmed available in ultralytics_yolo ^0.2.0 (verified from pub-cache source) — blocker resolved
+- [06-01]: _debugDotPosition is shared between YOLO and SSD — only one pipeline runs at a time, no conflict
+- [06-01]: SSD _debugDotPosition update placed inside existing mounted-guarded setState to avoid double rebuild
 
 ### Pending Todos
 
@@ -44,12 +49,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 6]: `showOverlays: false` availability in `ultralytics_yolo ^0.2.0` must be confirmed — recovery path documented in research/PITFALLS.md if absent
-- [Phase 6]: `onResult` coordinate accuracy on Galaxy A32 must be verified empirically (GitHub issue #105 — platform-specific offset)
+- [Phase 6]: `onResult` coordinate accuracy on Galaxy A32 must be verified empirically (GitHub issue #105 — platform-specific offset) — requires on-device test in 06-02
 - [Phase 7]: `ScreenParams.screenPreviewSize` timing on SSD path — must confirm non-null before first resultsStream event
 
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Roadmap created — ready to plan Phase 6
+Stopped at: Completed 06-01-PLAN.md — debug dot overlay for both YOLO and SSD pipelines
 Resume file: None

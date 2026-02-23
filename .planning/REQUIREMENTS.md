@@ -9,10 +9,10 @@ Requirements for Ball Tracking milestone. Each maps to roadmap phases.
 
 ### Overlay Foundation
 
-- [ ] **OVLY-01**: User can see ball center-point extracted from YOLO detection results using normalizedBox coordinates
-- [ ] **OVLY-02**: User can see ball center-point extracted from SSD detection results with coordinate normalization via ScreenParams
-- [ ] **OVLY-03**: Native YOLOView bounding box overlay is disabled so custom trail overlay is the only rendering layer
-- [ ] **OVLY-04**: All detection callbacks guard against setState after dispose with mounted check
+- [x] **OVLY-01**: User can see ball center-point extracted from YOLO detection results using normalizedBox coordinates
+- [x] **OVLY-02**: User can see ball center-point extracted from SSD detection results with coordinate normalization via ScreenParams
+- [x] **OVLY-03**: Native YOLOView bounding box overlay is disabled so custom trail overlay is the only rendering layer
+- [x] **OVLY-04**: All detection callbacks guard against setState after dispose with mounted check
 
 ### Trail Tracking
 
@@ -67,10 +67,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OVLY-01 | Phase 6 | Pending |
-| OVLY-02 | Phase 6 | Pending |
-| OVLY-03 | Phase 6 | Pending |
-| OVLY-04 | Phase 6 | Pending |
+| OVLY-01 | Phase 6 | Complete |
+| OVLY-02 | Phase 6 | Complete |
+| OVLY-03 | Phase 6 | Complete |
+| OVLY-04 | Phase 6 | Complete |
 | TRAK-01 | Phase 7 | Pending |
 | TRAK-02 | Phase 7 | Pending |
 | TRAK-03 | Phase 7 | Pending |
