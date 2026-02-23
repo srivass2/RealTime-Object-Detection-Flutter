@@ -25,7 +25,8 @@ Before ending a session, update the memory-bank to preserve state:
 2. **`memory-bank/progress.md`** — tick off anything completed; add new incomplete items.
 3. **`memory-bank/systemPatterns.md`** — update if any new architectural patterns were introduced.
 4. **Do not commit generated `*.g.dart` files** — they are gitignored and must be regenerated locally.
-5. Commit meaningful code changes with descriptive messages. Do not commit model binary files (`.tflite`, `.mlpackage`).
+5. **Never run `git commit` or `git push`** — the developer handles all commits and pushes manually. Only make changes to files.
+6. Commit meaningful code changes with descriptive messages. Do not commit model binary files (`.tflite`, `.mlpackage`).
 
 ---
 

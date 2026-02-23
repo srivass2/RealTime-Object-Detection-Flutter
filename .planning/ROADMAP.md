@@ -29,7 +29,7 @@ feasible on-device at acceptable performance on the YOLO pipeline (iOS and Andro
 ---
 
 - [x] **Phase 6: Overlay Foundation** - Validate that a Flutter overlay renders correctly above YOLOView on both platforms and that ball center-point coordinates are accurate
-- [ ] **Phase 7: Trail Accumulation and Rendering** - Build BallTracker and TrailOverlay — bounded position queue, occlusion handling, fading dot trail on YOLO path
+- [x] **Phase 7: Trail Accumulation and Rendering** - Build BallTracker and TrailOverlay — bounded position queue, occlusion handling, fading dot trail on YOLO path
 - [ ] **Phase 8: Polish** - Add evaluator-facing status overlays that communicate tracking state
 
 ## Phase Details
@@ -58,11 +58,11 @@ Plans:
   3. When a tennis ball and a soccer ball are both visible, the trail follows the soccer ball
   4. After 30+ consecutive frames with no detection, the trail clears automatically
   5. Trail renders correctly in landscape on the YOLO path without visual artifacts
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 complete
 Plans:
-- [ ] 07-01-PLAN.md — Foundation: TrackedPosition value type, YoloCoordUtils shared utility, BallTracker service
-- [ ] 07-02-PLAN.md — TrailOverlay CustomPainter and YOLO screen integration (replace DebugDotPainter, upgrade ball selection)
-- [ ] 07-03-PLAN.md — Device verification checkpoint (confirm trail on iPhone 12)
+- [x] 07-01-PLAN.md — Foundation: TrackedPosition value type, YoloCoordUtils shared utility, BallTracker service
+- [x] 07-02-PLAN.md — TrailOverlay CustomPainter and YOLO screen integration (replace DebugDotPainter, upgrade ball selection)
+- [x] 07-03-PLAN.md — Device verification checkpoint (confirm trail on iPhone 12) — 2 test rounds, AR fix (4:3), dedup fix
 
 ### Phase 8: Polish
 **Goal**: The detection screen communicates tracking state to the evaluator with a visible badge when the ball is lost
@@ -78,5 +78,5 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 6. Overlay Foundation | v1.1 | 2/2 | Complete | 2026-02-23 |
-| 7. Trail Accumulation and Rendering | 2/3 | In Progress|  | - |
+| 7. Trail Accumulation and Rendering | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Polish | v1.1 | 0/TBD | Not started | - |
