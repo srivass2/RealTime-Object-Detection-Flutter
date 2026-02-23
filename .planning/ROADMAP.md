@@ -41,7 +41,10 @@ feasible on-device at acceptable performance on both detection pipelines (YOLO a
   2. The dot updates position every frame without lag on both YOLO and SSD paths
   3. Native YOLO bounding boxes are no longer visible — the custom overlay is the only rendering layer
   4. Navigating away from the detection screen and back does not crash, freeze, or produce setState-after-dispose errors
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 06-01-PLAN.md — Implement debug dot overlay on both YOLO and SSD paths (coordinate extraction, native overlay suppression, mounted guards)
+- [ ] 06-02-PLAN.md — Device verification checkpoint (confirm dot accuracy on iPhone 12 and Galaxy A32)
 
 ### Phase 7: Trail Accumulation and Rendering
 **Goal**: The ball leaves a fading dot-and-line trail as it moves across the screen — the trail pauses when the ball is lost and resumes with a visible gap on re-detection — on both YOLO and SSD paths independently
@@ -68,6 +71,6 @@ feasible on-device at acceptable performance on both detection pipelines (YOLO a
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Overlay Foundation | v1.1 | 0/TBD | Not started | - |
+| 6. Overlay Foundation | v1.1 | 0/2 | Planning complete | - |
 | 7. Trail Accumulation and Rendering | v1.1 | 0/TBD | Not started | - |
 | 8. Polish | v1.1 | 0/TBD | Not started | - |
