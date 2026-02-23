@@ -10,6 +10,8 @@ import 'package:tensorflow_demo/models/detected_object/detected_object_dm.dart';
 import 'package:tensorflow_demo/models/screen_params.dart';
 import 'package:tensorflow_demo/screens/live_object_detection/widgets/debug_dot_overlay.dart';
 import 'package:tensorflow_demo/screens/live_object_detection/widgets/rounded_button.dart';
+import 'package:tensorflow_demo/screens/live_object_detection/widgets/trail_overlay.dart';
+import 'package:tensorflow_demo/services/ball_tracker.dart';
 import 'package:tensorflow_demo/services/detector.dart';
 import 'package:tensorflow_demo/services/navigation_service.dart';
 import 'package:tensorflow_demo/values/app_routes.dart';
@@ -56,6 +58,11 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
   /// Null when no ball is detected in the current frame.
   Offset? _debugDotPosition;
 
+  /// Ball position tracker for the YOLO trail overlay.
+  final _tracker = BallTracker(
+    trailWindow: const Duration(seconds: 1, milliseconds: 500),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -87,12 +94,47 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
   // ---------------------------------------------------------------------------
 
   YOLOResult? _pickBestBallYolo(List<YOLOResult> results) {
-    const ballClasses = {'Soccer ball', 'ball', 'tennis-ball'};
-    final candidates =
-        results.where((r) => ballClasses.contains(r.className)).toList();
+    // TRAK-03: Reject tennis-ball; accept Soccer ball and ball only.
+    const priority = {'Soccer ball': 0, 'ball': 1};
+    final candidates = results
+        .where((r) => priority.containsKey(r.className))
+        .toList();
     if (candidates.isEmpty) return null;
-    candidates.sort((a, b) => b.confidence.compareTo(a.confidence));
-    return candidates.first;
+
+    // Sort by class priority first, then confidence within same class.
+    candidates.sort((a, b) {
+      final pa = priority[a.className]!;
+      final pb = priority[b.className]!;
+      if (pa != pb) return pa.compareTo(pb);
+      return b.confidence.compareTo(a.confidence);
+    });
+
+    // TRAK-04: If multiple candidates share the top priority,
+    // use nearest-to-last-known-position as tiebreaker.
+    final topPriority = priority[candidates.first.className]!;
+    final topCandidates = candidates
+        .where((r) => priority[r.className] == topPriority)
+        .toList();
+
+    if (topCandidates.length == 1) return topCandidates.first;
+
+    final lastKnown = _tracker.lastKnownPosition;
+    if (lastKnown == null) return topCandidates.first; // no history
+
+    // Pick candidate whose normalizedBox center is closest to last known.
+    topCandidates.sort((a, b) {
+      final da = _squaredDist(a.normalizedBox.center, lastKnown);
+      final db = _squaredDist(b.normalizedBox.center, lastKnown);
+      return da.compareTo(db);
+    });
+    return topCandidates.first;
+  }
+
+  /// Squared Euclidean distance — no sqrt needed for comparison.
+  double _squaredDist(Offset a, Offset b) {
+    final dx = a.dx - b.dx;
+    final dy = a.dy - b.dy;
+    return dx * dx + dy * dy;
   }
 
   // ---------------------------------------------------------------------------
@@ -135,46 +177,32 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
                 // OVLY-04: Guard against setState-after-dispose.
                 if (!mounted) return;
 
-                log('YOLO results: ${results.length}');
-
-                // OVLY-01: Extract normalized ball center from best detection.
                 final ball = _pickBestBallYolo(results);
-                final Offset? newDot = ball != null
-                    ? Offset(
-                        ball.normalizedBox.center.dx,
-                        ball.normalizedBox.center.dy,
-                      )
-                    : null;
-                setState(() => _debugDotPosition = newDot);
+                setState(() {
+                  if (ball != null) {
+                    _tracker.update(Offset(
+                      ball.normalizedBox.center.dx,
+                      ball.normalizedBox.center.dy,
+                    ));
+                  } else {
+                    _tracker.markOccluded();
+                  }
+                });
               },
             ),
 
-            // OVLY-01: Debug dot overlay — RepaintBoundary wraps CustomPaint.
+            // RNDR-04: RepaintBoundary wraps CustomPaint for rendering isolation.
             RepaintBoundary(
-              child: CustomPaint(
-                size: Size.infinite,
-                painter: DebugDotPainter(dotPosition: _debugDotPosition),
-              ),
-            ),
-
-            // Diagnostic coordinate text for device-side testing.
-            if (_debugDotPosition != null)
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  color: Colors.black54,
-                  child: Text(
-                    'dot: (${_debugDotPosition!.dx.toStringAsFixed(3)}, '
-                    '${_debugDotPosition!.dy.toStringAsFixed(3)})',
-                    style: const TextStyle(color: Colors.white, fontSize: 11),
+              child: IgnorePointer(
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: TrailOverlay(
+                    trail: _tracker.trail,
+                    trailWindow: const Duration(seconds: 1, milliseconds: 500),
                   ),
                 ),
               ),
+            ),
 
             // Backend label badge.
             Positioned(
@@ -334,6 +362,8 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
 
   @override
   void dispose() {
+    _tracker.reset();
+
     // Restore orientations for the rest of the app.
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
