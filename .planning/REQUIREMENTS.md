@@ -18,17 +18,17 @@ Requirements for Ball Tracking milestone. YOLO pipeline only (SSD/TFLite dropped
 
 - [x] **TRAK-01**: Ball positions are stored in a bounded queue (max ~45 entries, ~1.5s at 30fps) that automatically evicts oldest entries
 - [x] **TRAK-02**: Occlusion is handled via null sentinels — trail pauses when ball is not detected and resumes on re-detection with a visible gap
-- [ ] **TRAK-03**: Class priority filter selects "Soccer ball" over "ball" and rejects "tennis-ball" detections
-- [ ] **TRAK-04**: When multiple valid detections exist in the same frame, nearest-to-last-known-position is used as tiebreaker
+- [x] **TRAK-03**: Class priority filter selects "Soccer ball" over "ball" and rejects "tennis-ball" detections
+- [x] **TRAK-04**: When multiple valid detections exist in the same frame, nearest-to-last-known-position is used as tiebreaker
 - [x] **TRAK-05**: Trail auto-clears after 30+ consecutive frames with no ball detected
 
 ### Trail Rendering
 
-- [ ] **RNDR-01**: User can see a fading dot trail with age-based opacity gradient (recent dots are opaque, older dots fade out)
-- [ ] **RNDR-02**: Connecting line segments are drawn between consecutive trail positions
-- [ ] **RNDR-03**: Line segments skip occlusion gaps — no line is drawn across null sentinels
-- [ ] **RNDR-04**: Trail CustomPainter is wrapped in RepaintBoundary for rendering isolation (does not trigger camera layer repaints)
-- [ ] **RNDR-05**: Trail overlay renders correctly on YOLO path in landscape orientation
+- [x] **RNDR-01**: User can see a fading dot trail with age-based opacity gradient (recent dots are opaque, older dots fade out)
+- [x] **RNDR-02**: Connecting line segments are drawn between consecutive trail positions
+- [x] **RNDR-03**: Line segments skip occlusion gaps — no line is drawn across null sentinels
+- [x] **RNDR-04**: Trail CustomPainter is wrapped in RepaintBoundary for rendering isolation (does not trigger camera layer repaints)
+- [x] **RNDR-05**: Trail overlay renders correctly on YOLO path in landscape orientation
 - ~~RNDR-06~~: ~~SSD path trail~~ — **Dropped** (SSD/TFLite path removed from scope)
 
 ### Polish
@@ -74,14 +74,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OVLY-04 | Phase 6 | Complete |
 | TRAK-01 | Phase 7 | Complete |
 | TRAK-02 | Phase 7 | Complete |
-| TRAK-03 | Phase 7 | Pending |
-| TRAK-04 | Phase 7 | Pending |
+| TRAK-03 | Phase 7 | Complete |
+| TRAK-04 | Phase 7 | Complete |
 | TRAK-05 | Phase 7 | Complete |
-| RNDR-01 | Phase 7 | Pending |
-| RNDR-02 | Phase 7 | Pending |
-| RNDR-03 | Phase 7 | Pending |
-| RNDR-04 | Phase 7 | Pending |
-| RNDR-05 | Phase 7 | Pending |
+| RNDR-01 | Phase 7 | Complete |
+| RNDR-02 | Phase 7 | Complete |
+| RNDR-03 | Phase 7 | Complete |
+| RNDR-04 | Phase 7 | Complete |
+| RNDR-05 | Phase 7 | Complete |
 | ~~RNDR-06~~ | — | Dropped |
 | PLSH-01 | Phase 8 | Pending |
 

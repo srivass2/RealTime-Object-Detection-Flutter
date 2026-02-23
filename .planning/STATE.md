@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Real-time soccer ball detection and tracking must run on-device with acceptable speed and accuracy on both iOS and Android
-**Current focus:** Phase 7 — Trail Accumulation and Rendering (in progress — Plan 01 complete)
+**Current focus:** Phase 8 — Evaluation (Phase 7 complete)
 
 ## Current Position
 
 Phase: 7 of 8 (Trail Accumulation and Rendering)
-Plan: 1 of 2 complete (Plan 02 — trail painter and screen integration — next)
-Status: Phase 7 Plan 01 complete; data/service layer done
-Last activity: 2026-02-23 — Phase 7 Plan 01: TrackedPosition, YoloCoordUtils, BallTracker created
+Plan: 2 of 2 complete (Phase 7 fully complete — Phase 8 evaluation next)
+Status: Phase 7 complete; trail overlay and screen integration done
+Last activity: 2026-02-23 — Phase 7 Plan 02: TrailOverlay, upgraded _pickBestBallYolo, YOLO screen integration
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -28,7 +28,7 @@ Progress: [████░░░░░░] 40%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 06-overlay-foundation | 2/2 | ~6 min | ~3 min |
-| 07-trail-accumulation-and-rendering | 1/2 | ~2 min | ~2 min |
+| 07-trail-accumulation-and-rendering | 2/2 | ~5 min | ~2.5 min |
 
 ## Accumulated Context
 
@@ -46,10 +46,13 @@ Progress: [████░░░░░░] 40%
 - [07-01]: YoloCoordUtils crop math extracted verbatim from DebugDotPainter — do not modify without re-validating on iPhone 12
 - [07-01]: BallTracker._prune() must NOT reset _consecutiveMissedFrames — resetting it inside _prune() would suppress the 30-frame auto-reset (research Pitfall 3)
 - [07-01]: TrackedPosition uses dart:ui Offset only (not flutter/painting.dart) — keeps the model free of Flutter widget framework for pure-Dart unit testability
+- [Phase 07]: TrailOverlay shouldRepaint always returns true — BallTracker.trail List.unmodifiable() creates new wrapper each call; RepaintBoundary is the real performance guard
+- [Phase 07]: tracked_position.dart import removed from screen — TrackedPosition consumed inside BallTracker/TrailOverlay only; direct screen import produces unused_import warning
+- [Phase 07]: IgnorePointer wraps trail CustomPaint — prevents overlay from consuming touch events intended for YOLOView camera layer
 
 ### Pending Todos
 
-None — Phase 7 Plan 01 complete. Plan 02 (trail painter + screen integration) is next.
+None — Phase 7 complete. Phase 8 (evaluation on iPhone 12) is next.
 
 ### Blockers/Concerns
 
@@ -59,5 +62,5 @@ None — Phase 7 Plan 01 complete. Plan 02 (trail painter + screen integration) 
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 7 Plan 01 complete — data/service layer (TrackedPosition, YoloCoordUtils, BallTracker) ready for Plan 02
+Stopped at: Phase 7 Plan 02 complete — TrailOverlay and YOLO screen integration done; Phase 8 evaluation next
 Resume file: None
