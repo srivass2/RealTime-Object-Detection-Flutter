@@ -21,16 +21,18 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 - ✓ Bounding box rendering on SSD MobileNet path — v1.0
 - ✓ Three-screen navigation (Home → Live Camera, Home → Photo Analysis) — v1.0
 - ✓ Evaluation evidence captured (screenshots + recordings, both platforms) — v1.0
+- ✓ Native YOLOView bounding boxes disabled via `showOverlays: false` — v1.1
+- ✓ `mounted` guard on all detection callbacks — v1.1
 
 ### Active
 
-<!-- Current milestone: v1.1 Ball Tracking -->
+<!-- Current milestone: v1.1 Ball Tracking (YOLO only) -->
 
-- [ ] Ball position tracking across consecutive frames (YOLO pipeline)
-- [ ] Ball position tracking across consecutive frames (SSD MobileNet pipeline)
+- [ ] Ball position tracking across consecutive frames (YOLO pipeline only)
 - [ ] Visual trail rendering: dots at each tracked position with connecting line
 - [ ] Trail fades after ~2-3 seconds (recent movement only)
 - [ ] Occlusion handling: trail pauses when ball lost, resumes on re-detection (gap in path)
+- [ ] "Ball lost" badge overlay
 
 ### Out of Scope
 
@@ -42,30 +44,31 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 - Predictive tracking (estimating ball position when occluded) — happy path first
 - Multi-ball tracking — single ball is the target use case
 - Speed/velocity metrics or analytics — just the visual trail for now
+- **SSD MobileNet / TFLite tracking** — model is old; YOLO only going forward
 
 ## Context
 
-- **Flutter app** with two independent ML pipelines selected at build time: `DETECTOR_BACKEND=yolo` (primary) and `DETECTOR_BACKEND=tflite` (SSD MobileNet fallback)
-- **YOLO path** uses `ultralytics_yolo: ^0.2.0` with `YOLOView` widget. `onResult` callback fires per frame with detection results. Bounding boxes may be rendered natively by `YOLOView`
-- **SSD MobileNet path** uses `tflite_flutter: 0.11.0` with background Dart isolate for inference. Custom `BoxWidget` renders bounding boxes on camera overlay
+- **Flutter app** with YOLO as the primary (and only active) ML pipeline: `DETECTOR_BACKEND=yolo`
+- **SSD MobileNet path** exists in code for reference but is frozen — no new features
+- **YOLO path** uses `ultralytics_yolo: ^0.2.0` with `YOLOView` widget. `onResult` callback fires per frame with detection results. Native bounding boxes disabled via `showOverlays: false`
 - **Custom YOLO11n model** trained on 3 classes: `Soccer ball`, `ball`, `tennis-ball`. Labels embedded in model
 - **Target devices:** iPhone 12 (A14 Bionic, iOS 17.1.2), Samsung Galaxy A32 (SM-A325F, Android 12)
 - **Dev environment:** MacBook Pro (M5, 16GB), Flutter 3.38.9, Dart 3.10.8, Xcode 26.2
-- **Known: `onResult` callback** fires with detection data on YOLO path but only logs count currently — no custom overlay rendering yet. Need to confirm whether `YOLOView` renders boxes natively or if we need a custom overlay
-- **Existing technical debt:** iOS diagnostic probe in `main.dart`, placeholder API key, placeholder camera description, stale widget test
+- **Phase 6 status:** Debug dot overlay implemented, coordinate Y-axis offset observed on iPhone 12 — fix in progress
+- **Known limitation:** Tracking quality described as "very poor" on iPhone 12 — may be a model limitation rather than code issue
 
 ## Constraints
 
 - **Framework**: Flutter/Dart — existing codebase, cannot change
-- **ML packages**: `ultralytics_yolo ^0.2.0` and `tflite_flutter 0.11.0` (pinned) — do not upgrade without testing
+- **ML packages**: `ultralytics_yolo ^0.2.0` — do not upgrade without testing
 - **On-device only**: No network calls for inference or tracking
-- **Two pipelines**: Tracking must work on both YOLO and SSD paths independently
-- **Performance**: Tracking logic must not cause visible jank — inference already runs on separate thread/isolate, tracking overhead must be minimal
+- **YOLO only**: Tracking features on YOLO pipeline only (SSD path frozen)
+- **Performance**: Tracking logic must not cause visible jank — inference already runs on separate thread, tracking overhead must be minimal
 - **Landscape lock**: YOLO screen is landscape-only, tracking UI must respect this
 
 ## Current Milestone: v1.1 Ball Tracking
 
-**Goal:** Prove that frame-to-frame ball tracking with a fading visual trail is technically feasible on-device at acceptable performance on both detection pipelines.
+**Goal:** Prove that frame-to-frame ball tracking with a fading visual trail is technically feasible on-device at acceptable performance on the YOLO pipeline.
 
 **Target features:**
 - Ball position tracking across frames
@@ -81,8 +84,8 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 | Model files gitignored | Large binaries managed outside VCS | ✓ Good |
 | Landscape-only for YOLO screen | Matches realistic phone orientation for filming a pitch | ✓ Good |
 | Background isolate for TFLite inference | Prevents UI jank during CPU-intensive work | ✓ Good |
-| SSD MobileNet kept as fallback | Working baseline for comparison | ✓ Good |
-| Both pipelines get tracking | Evaluate tracking feasibility on both backends | — Pending |
+| **SSD/TFLite path dropped from v1.1** | **Model is old; not worth investing in tracking for it** | ✓ Scope reduction |
+| `showOverlays: false` on YOLOView | Confirmed working; custom overlay is only rendering layer | ✓ Good |
 
 ---
-*Last updated: 2026-02-23 after milestone v1.1 initialization*
+*Last updated: 2026-02-23 — SSD/TFLite path dropped from scope*

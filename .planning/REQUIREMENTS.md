@@ -5,12 +5,12 @@
 
 ## v1.1 Requirements
 
-Requirements for Ball Tracking milestone. Each maps to roadmap phases.
+Requirements for Ball Tracking milestone. YOLO pipeline only (SSD/TFLite dropped from scope).
 
 ### Overlay Foundation
 
 - [x] **OVLY-01**: User can see ball center-point extracted from YOLO detection results using normalizedBox coordinates
-- [x] **OVLY-02**: User can see ball center-point extracted from SSD detection results with coordinate normalization via ScreenParams
+- ~~OVLY-02~~: ~~SSD detection results~~ — **Dropped** (SSD/TFLite path removed from scope)
 - [x] **OVLY-03**: Native YOLOView bounding box overlay is disabled so custom trail overlay is the only rendering layer
 - [x] **OVLY-04**: All detection callbacks guard against setState after dispose with mounted check
 
@@ -29,7 +29,7 @@ Requirements for Ball Tracking milestone. Each maps to roadmap phases.
 - [ ] **RNDR-03**: Line segments skip occlusion gaps — no line is drawn across null sentinels
 - [ ] **RNDR-04**: Trail CustomPainter is wrapped in RepaintBoundary for rendering isolation (does not trigger camera layer repaints)
 - [ ] **RNDR-05**: Trail overlay renders correctly on YOLO path in landscape orientation
-- [ ] **RNDR-06**: Trail overlay renders correctly on SSD path independently from YOLO path
+- ~~RNDR-06~~: ~~SSD path trail~~ — **Dropped** (SSD/TFLite path removed from scope)
 
 ### Polish
 
@@ -54,6 +54,7 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
+| SSD MobileNet / TFLite tracking | Model is old; YOLO only going forward |
 | Kalman filter predictive tracking | Significant complexity, needs per-device tuning; POC should show raw tracking quality first |
 | Multi-ball tracking | Separate research problem; single ball is the target use case |
 | Trail color by speed | Requires calibrated pixel-to-world mapping; not needed for feasibility |
@@ -68,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | OVLY-01 | Phase 6 | Complete |
-| OVLY-02 | Phase 6 | Complete |
+| ~~OVLY-02~~ | — | Dropped |
 | OVLY-03 | Phase 6 | Complete |
 | OVLY-04 | Phase 6 | Complete |
 | TRAK-01 | Phase 7 | Pending |
@@ -81,14 +82,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RNDR-03 | Phase 7 | Pending |
 | RNDR-04 | Phase 7 | Pending |
 | RNDR-05 | Phase 7 | Pending |
-| RNDR-06 | Phase 7 | Pending |
+| ~~RNDR-06~~ | — | Dropped |
 | PLSH-01 | Phase 8 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 16 total
-- Mapped to phases: 16
+- v1.1 requirements: 14 active (2 dropped)
+- Mapped to phases: 14
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 — traceability filled in after roadmap creation*
+*Last updated: 2026-02-23 — SSD/TFLite requirements dropped per user decision*
