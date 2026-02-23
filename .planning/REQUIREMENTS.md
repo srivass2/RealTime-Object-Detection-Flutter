@@ -67,28 +67,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OVLY-01 | — | Pending |
-| OVLY-02 | — | Pending |
-| OVLY-03 | — | Pending |
-| OVLY-04 | — | Pending |
-| TRAK-01 | — | Pending |
-| TRAK-02 | — | Pending |
-| TRAK-03 | — | Pending |
-| TRAK-04 | — | Pending |
-| TRAK-05 | — | Pending |
-| RNDR-01 | — | Pending |
-| RNDR-02 | — | Pending |
-| RNDR-03 | — | Pending |
-| RNDR-04 | — | Pending |
-| RNDR-05 | — | Pending |
-| RNDR-06 | — | Pending |
-| PLSH-01 | — | Pending |
+| OVLY-01 | Phase 6 | Pending |
+| OVLY-02 | Phase 6 | Pending |
+| OVLY-03 | Phase 6 | Pending |
+| OVLY-04 | Phase 6 | Pending |
+| TRAK-01 | Phase 7 | Pending |
+| TRAK-02 | Phase 7 | Pending |
+| TRAK-03 | Phase 7 | Pending |
+| TRAK-04 | Phase 7 | Pending |
+| TRAK-05 | Phase 7 | Pending |
+| RNDR-01 | Phase 7 | Pending |
+| RNDR-02 | Phase 7 | Pending |
+| RNDR-03 | Phase 7 | Pending |
+| RNDR-04 | Phase 7 | Pending |
+| RNDR-05 | Phase 7 | Pending |
+| RNDR-06 | Phase 7 | Pending |
+| PLSH-01 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after initial definition*
+*Last updated: 2026-02-23 — traceability filled in after roadmap creation*
