@@ -1,12 +1,10 @@
+import 'dart:developer';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'app.dart';
 import 'package:tensorflow_demo/services/tensorflow_service.dart';
-
-import 'dart:io';
-import 'package:tflite_flutter/tflite_flutter.dart';
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,20 +16,7 @@ Future<void> main() async {
     'DETECTOR_BACKEND',
     defaultValue: 'tflite',
   );
-  print('DETECTOR_BACKEND = $backend');
-
-  // TEMP CHECK: can iOS load YOLO TFLite from Flutter assets?
-  if (Platform.isIOS) {
-    try {
-      final interpreter = await Interpreter.fromAsset('assets/model/yolo11n.tflite');
-      print('iOS loaded assets/model/yolo11n.tflite OK. '
-          'Inputs: ${interpreter.getInputTensors().map((t) => t.shape).toList()} '
-          'Outputs: ${interpreter.getOutputTensors().map((t) => t.shape).toList()}');
-      interpreter.close();
-    } catch (e) {
-      print('iOS FAILED to load assets/model/yolo11n.tflite: $e');
-    }
-  }
+  log('DETECTOR_BACKEND = $backend', name: 'main');
 
   // Initialize ONLY the selected backend
   if (backend == 'tflite') {
