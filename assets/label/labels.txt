@@ -93,3 +93,6 @@ goalkeeper
 player
 referee
 goal
+Soccer ball
+ball
+tennis-ball
