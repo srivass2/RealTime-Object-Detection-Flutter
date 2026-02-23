@@ -58,7 +58,11 @@ Plans:
   3. When a tennis ball and a soccer ball are both visible, the trail follows the soccer ball
   4. After 30+ consecutive frames with no detection, the trail clears automatically
   5. Trail renders correctly in landscape on the YOLO path without visual artifacts
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 07-01-PLAN.md — Foundation: TrackedPosition value type, YoloCoordUtils shared utility, BallTracker service
+- [ ] 07-02-PLAN.md — TrailOverlay CustomPainter and YOLO screen integration (replace DebugDotPainter, upgrade ball selection)
+- [ ] 07-03-PLAN.md — Device verification checkpoint (confirm trail on iPhone 12)
 
 ### Phase 8: Polish
 **Goal**: The detection screen communicates tracking state to the evaluator with a visible badge when the ball is lost
@@ -74,5 +78,5 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 6. Overlay Foundation | v1.1 | 2/2 | Complete | 2026-02-23 |
-| 7. Trail Accumulation and Rendering | v1.1 | 0/TBD | Not started | - |
+| 7. Trail Accumulation and Rendering | v1.1 | 0/3 | Planned | - |
 | 8. Polish | v1.1 | 0/TBD | Not started | - |
