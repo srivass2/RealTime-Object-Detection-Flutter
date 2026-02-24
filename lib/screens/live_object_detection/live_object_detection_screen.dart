@@ -225,6 +225,32 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
                 ),
               ),
             ),
+
+            // "Ball lost" badge — PLSH-01.
+            // IgnorePointer: must not consume touch events from YOLOView.
+            if (_tracker.isBallLost)
+              IgnorePointer(
+                child: Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Ball lost',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       );
