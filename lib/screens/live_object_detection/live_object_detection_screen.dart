@@ -227,12 +227,12 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
             ),
 
             // "Ball lost" badge — PLSH-01.
-            // IgnorePointer: must not consume touch events from YOLOView.
+            // Positioned must be a direct Stack child; IgnorePointer goes inside.
             if (_tracker.isBallLost)
-              IgnorePointer(
-                child: Positioned(
-                  top: 12,
-                  right: 12,
+              Positioned(
+                top: 12,
+                right: 12,
+                child: IgnorePointer(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 6),
