@@ -30,7 +30,7 @@ feasible on-device at acceptable performance on the YOLO pipeline (iOS and Andro
 
 - [x] **Phase 6: Overlay Foundation** - Validate that a Flutter overlay renders correctly above YOLOView on both platforms and that ball center-point coordinates are accurate
 - [x] **Phase 7: Trail Accumulation and Rendering** - Build BallTracker and TrailOverlay — bounded position queue, occlusion handling, fading dot trail on YOLO path
-- [ ] **Phase 8: Polish** - Add evaluator-facing status overlays that communicate tracking state
+- [x] **Phase 8: Polish** - Add evaluator-facing status overlays that communicate tracking state (completed 2026-02-24)
 
 ## Phase Details
 
@@ -71,7 +71,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A "Ball lost" badge appears on screen within a few frames after the ball leaves view or becomes occluded
   2. The badge disappears when the ball is re-detected and tracking resumes
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 08-01-PLAN.md — Add "Ball lost" badge (BallTracker getter + YOLO Stack badge widget + device verification)
 
@@ -81,4 +81,4 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 6. Overlay Foundation | v1.1 | 2/2 | Complete | 2026-02-23 |
 | 7. Trail Accumulation and Rendering | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 8. Polish | v1.1 | 0/1 | Not started | - |
+| 8. Polish | 1/1 | Complete   | 2026-02-24 | - |

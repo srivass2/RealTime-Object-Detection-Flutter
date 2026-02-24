@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 7 of 8 (Trail Accumulation and Rendering) — COMPLETE
-Plan: 3 of 3 complete (all plans executed + device verified)
-Status: Phase 7 complete and verified on iPhone 12; Phase 8 (Polish) next
-Last activity: 2026-02-23 — Phase 7 Plan 03: Device verification passed (4 recordings, both landscape orientations)
+Phase: 8 of 8 (Polish) — IN PROGRESS
+Plan: 1 of 1 — Tasks 1 and 2 complete; awaiting Task 3 (device verification checkpoint)
+Status: "Ball lost" badge code complete; checkpoint:human-verify pending on iPhone 12
+Last activity: 2026-02-24 — Phase 8 Plan 01: isBallLost getter + badge widget implemented, flutter analyze clean
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -51,10 +51,11 @@ Progress: [██████░░░░] 60%
 - [Phase 07]: IgnorePointer wraps trail CustomPaint — prevents overlay from consuming touch events intended for YOLOView camera layer
 - [07-03]: **Camera AR is 4:3** (not 16:9). ultralytics_yolo `.photo` session preset → 4032×3024 on iOS. cameraAspectRatio default changed in TrailOverlay, DebugDotPainter.
 - [07-03]: Min-distance dedup threshold `_minDistSq = 0.000025` (0.5% of frame) added to BallTracker.update() — prevents dot clustering at ~30fps
+- [Phase 08-polish]: ballLostThreshold = 3 frames (~100ms at 30fps) satisfies PLSH-01; isBallLost exposes boolean only; badge piggybacks on onResult setState; IgnorePointer wraps badge consistent with trail pattern
 
 ### Pending Todos
 
-None — Phase 7 complete. Phase 8 (Polish — "Ball lost" badge) is next.
+- Phase 8 Plan 01 Task 3: Device verify "Ball lost" badge on iPhone 12 (checkpoint:human-verify)
 
 ### Blockers/Concerns
 
@@ -62,6 +63,6 @@ None — Phase 7 complete. Phase 8 (Polish — "Ball lost" badge) is next.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Phase 7 fully complete (3/3 plans, device verified). Phase 8 (Polish) next.
+Last session: 2026-02-24
+Stopped at: 08-01 checkpoint:human-verify — "Ball lost" badge code complete, awaiting iPhone 12 device verification
 Resume file: None

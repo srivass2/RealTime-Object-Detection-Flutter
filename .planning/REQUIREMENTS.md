@@ -33,7 +33,7 @@ Requirements for Ball Tracking milestone. YOLO pipeline only (SSD/TFLite dropped
 
 ### Polish
 
-- [ ] **PLSH-01**: User can see a "Ball lost" badge overlay when tracking has lost the ball for multiple consecutive frames
+- [x] **PLSH-01**: User can see a "Ball lost" badge overlay when tracking has lost the ball for multiple consecutive frames
 
 ## v2+ Requirements
 
@@ -83,7 +83,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RNDR-04 | Phase 7 | Complete |
 | RNDR-05 | Phase 7 | Complete |
 | ~~RNDR-06~~ | — | Dropped |
-| PLSH-01 | Phase 8 | Pending |
+| PLSH-01 | Phase 8 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 14 active (2 dropped)
