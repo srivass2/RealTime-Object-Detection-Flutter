@@ -54,6 +54,20 @@ class BallTracker {
   /// the polyline wherever [TrackedPosition.isOccluded] is true.
   List<TrackedPosition> get trail => List.unmodifiable(_history);
 
+  /// Number of consecutive missed frames before the "Ball lost" badge is shown.
+  ///
+  /// Must be less than [autoResetThreshold] (30). At 30 fps, 3 frames ≈ 100 ms,
+  /// which satisfies the PLSH-01 requirement of badge appearing "within a few
+  /// frames" of the ball leaving view.
+  static const int ballLostThreshold = 3;
+
+  /// Returns true when the ball has been missing for [ballLostThreshold] or more
+  /// consecutive frames.
+  ///
+  /// Used by the live detection screen to show the "Ball lost" badge. Resets to
+  /// false automatically on the next [update] call when the ball is re-detected.
+  bool get isBallLost => _consecutiveMissedFrames >= ballLostThreshold;
+
   /// Returns the [normalizedCenter] of the most recent non-occluded entry,
   /// or null if no such entry exists.
   ///
