@@ -71,7 +71,9 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A "Ball lost" badge appears on screen within a few frames after the ball leaves view or becomes occluded
   2. The badge disappears when the ball is re-detected and tracking resumes
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 08-01-PLAN.md — Add "Ball lost" badge (BallTracker getter + YOLO Stack badge widget + device verification)
 
 ## Progress
 
@@ -79,4 +81,4 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 6. Overlay Foundation | v1.1 | 2/2 | Complete | 2026-02-23 |
 | 7. Trail Accumulation and Rendering | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 8. Polish | v1.1 | 0/TBD | Not started | - |
+| 8. Polish | v1.1 | 0/1 | Not started | - |
