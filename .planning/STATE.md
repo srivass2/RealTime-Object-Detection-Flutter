@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 8 of 8 (Polish) — IN PROGRESS
-Plan: 1 of 1 — Tasks 1 and 2 complete; awaiting Task 3 (device verification checkpoint)
-Status: "Ball lost" badge code complete; checkpoint:human-verify pending on iPhone 12
-Last activity: 2026-02-24 — Phase 8 Plan 01: isBallLost getter + badge widget implemented, flutter analyze clean
+Phase: 8 of 8 (Polish) — COMPLETE
+Plan: 1 of 1 complete (all tasks executed + device verified on iPhone 12)
+Status: All phases complete; v1.1 ball tracking milestone fully delivered and device-verified
+Last activity: 2026-02-24 — Phase 8 Plan 01: device verified on iPhone 12, Positioned/IgnorePointer nesting bug fixed, "Ball lost overlay works perfectly"
 
-Progress: [███████░░░] 70%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -29,6 +29,7 @@ Progress: [███████░░░] 70%
 |-------|-------|-------|----------|
 | 06-overlay-foundation | 2/2 | ~6 min | ~3 min |
 | 07-trail-accumulation-and-rendering | 3/3 | ~53 min | ~18 min (includes device testing + bug fix) |
+| 08-polish | 1/1 | ~10 min | ~10 min (includes device testing + nesting bug fix) |
 
 ## Accumulated Context
 
@@ -52,10 +53,11 @@ Progress: [███████░░░] 70%
 - [07-03]: **Camera AR is 4:3** (not 16:9). ultralytics_yolo `.photo` session preset → 4032×3024 on iOS. cameraAspectRatio default changed in TrailOverlay, DebugDotPainter.
 - [07-03]: Min-distance dedup threshold `_minDistSq = 0.000025` (0.5% of frame) added to BallTracker.update() — prevents dot clustering at ~30fps
 - [Phase 08-polish]: ballLostThreshold = 3 frames (~100ms at 30fps) satisfies PLSH-01; isBallLost exposes boolean only; badge piggybacks on onResult setState; IgnorePointer wraps badge consistent with trail pattern
+- [08-01]: **Positioned must be a direct Stack child** — IgnorePointer goes INSIDE Positioned, not outside. Wrapping Positioned in IgnorePointer causes Flutter assertion error at runtime.
 
 ### Pending Todos
 
-- Phase 8 Plan 01 Task 3: Device verify "Ball lost" badge on iPhone 12 (checkpoint:human-verify)
+None — all phases complete. v1.1 ball tracking milestone fully delivered.
 
 ### Blockers/Concerns
 
@@ -64,5 +66,5 @@ Progress: [███████░░░] 70%
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: 08-01 checkpoint:human-verify — "Ball lost" badge code complete, awaiting iPhone 12 device verification
+Stopped at: Phase 8 fully complete (1/1 plans, device verified on iPhone 12). All 8 phases complete.
 Resume file: None
