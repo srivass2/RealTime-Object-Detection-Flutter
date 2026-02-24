@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A mobile feasibility POC evaluating whether YOLO11n can run real-time, on-device soccer ball detection and tracking on Flutter for both iOS and Android. The app detects soccer balls via camera, tracks their movement across frames, and draws a visual trail showing the ball's path. Built as an internal engineering study to determine whether to invest in this feature for the real Flare Football product.
+A mobile feasibility POC evaluating whether YOLO11n can run real-time, on-device soccer ball detection and tracking on Flutter for both iOS and Android. The app detects soccer balls via camera, tracks their movement across frames, draws a visual trail showing the ball's path, and displays a "Ball lost" badge when tracking is interrupted. Built as an internal engineering study to determine whether to invest in this feature for the real Flare Football product.
 
 ## Core Value
 
@@ -11,8 +11,6 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 ## Requirements
 
 ### Validated
-
-<!-- Shipped and confirmed working from POC Phase 1 -->
 
 - ✓ YOLO11n runs real-time on Android (TFLite) and iOS (Core ML) — v1.0
 - ✓ SSD MobileNet fallback runs inference in background isolate — v1.0
@@ -23,16 +21,22 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 - ✓ Evaluation evidence captured (screenshots + recordings, both platforms) — v1.0
 - ✓ Native YOLOView bounding boxes disabled via `showOverlays: false` — v1.1
 - ✓ `mounted` guard on all detection callbacks — v1.1
+- ✓ Ball center-point extraction from YOLO normalizedBox coordinates — v1.1
+- ✓ Ball position tracking in bounded time-windowed queue (~1.5s) — v1.1
+- ✓ Occlusion handling with null sentinels and gap rendering — v1.1
+- ✓ Class priority filter (Soccer ball > ball, rejects tennis-ball) — v1.1
+- ✓ Nearest-neighbor tiebreaker for multi-detection frames — v1.1
+- ✓ Trail auto-clear after 30+ consecutive missed frames — v1.1
+- ✓ Fading dot trail with age-based opacity gradient — v1.1
+- ✓ Connecting line segments between trail positions — v1.1
+- ✓ Occlusion gap skipping in trail rendering — v1.1
+- ✓ Trail CustomPainter with RepaintBoundary isolation — v1.1
+- ✓ Trail renders correctly in landscape on YOLO path — v1.1
+- ✓ "Ball lost" badge overlay when ball missing for 3+ frames — v1.1
 
 ### Active
 
-<!-- Current milestone: v1.1 Ball Tracking (YOLO only) -->
-
-- [ ] Ball position tracking across consecutive frames (YOLO pipeline only)
-- [ ] Visual trail rendering: dots at each tracked position with connecting line
-- [ ] Trail fades after ~2-3 seconds (recent movement only)
-- [ ] Occlusion handling: trail pauses when ball lost, resumes on re-detection (gap in path)
-- [ ] "Ball lost" badge overlay
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -48,14 +52,18 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 
 ## Context
 
-- **Flutter app** with YOLO as the primary (and only active) ML pipeline: `DETECTOR_BACKEND=yolo`
+- **Flutter app** (49 Dart files, ~3,264 LOC) with YOLO as the primary ML pipeline: `DETECTOR_BACKEND=yolo`
 - **SSD MobileNet path** exists in code for reference but is frozen — no new features
 - **YOLO path** uses `ultralytics_yolo: ^0.2.0` with `YOLOView` widget. `onResult` callback fires per frame with detection results. Native bounding boxes disabled via `showOverlays: false`
+- **Ball tracking** via `BallTracker` service with 1.5s time-windowed `ListQueue`, occlusion sentinels, and 30-frame auto-reset. `TrailOverlay` CustomPainter renders fading dot trail with connecting lines
+- **"Ball lost" badge** appears at top-right after 3 consecutive missed frames (~100ms), disappears on re-detection
 - **Custom YOLO11n model** trained on 3 classes: `Soccer ball`, `ball`, `tennis-ball`. Labels embedded in model
+- **Camera aspect ratio** is 4:3 (`ultralytics_yolo` uses `.photo` session preset on iOS: 4032×3024)
 - **Target devices:** iPhone 12 (A14 Bionic, iOS 17.1.2), Samsung Galaxy A32 (SM-A325F, Android 12)
 - **Dev environment:** MacBook Pro (M5, 16GB), Flutter 3.38.9, Dart 3.10.8, Xcode 26.2
-- **Phase 6 status:** Debug dot overlay implemented, coordinate Y-axis offset observed on iPhone 12 — fix in progress
 - **Known limitation:** Tracking quality described as "very poor" on iPhone 12 — may be a model limitation rather than code issue
+- **Known gap:** Galaxy A32 Android testing deferred — Android SDK not configured on dev Mac
+- **Shipped milestones:** v1.0 (Detection Feasibility), v1.1 (Ball Tracking)
 
 ## Constraints
 
@@ -66,15 +74,6 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 - **Performance**: Tracking logic must not cause visible jank — inference already runs on separate thread, tracking overhead must be minimal
 - **Landscape lock**: YOLO screen is landscape-only, tracking UI must respect this
 
-## Current Milestone: v1.1 Ball Tracking
-
-**Goal:** Prove that frame-to-frame ball tracking with a fading visual trail is technically feasible on-device at acceptable performance on the YOLO pipeline.
-
-**Target features:**
-- Ball position tracking across frames
-- Fading dot + line trail visualization
-- Occlusion-aware pause/resume
-
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
@@ -84,8 +83,14 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 | Model files gitignored | Large binaries managed outside VCS | ✓ Good |
 | Landscape-only for YOLO screen | Matches realistic phone orientation for filming a pitch | ✓ Good |
 | Background isolate for TFLite inference | Prevents UI jank during CPU-intensive work | ✓ Good |
-| **SSD/TFLite path dropped from v1.1** | **Model is old; not worth investing in tracking for it** | ✓ Scope reduction |
+| SSD/TFLite path dropped from v1.1 | Model is old; not worth investing in tracking for it | ✓ Scope reduction |
 | `showOverlays: false` on YOLOView | Confirmed working; custom overlay is only rendering layer | ✓ Good |
+| Camera AR = 4:3 (not 16:9) | ultralytics_yolo `.photo` session preset on iOS = 4032×3024 | ✓ Good (fixed ~10% Y-offset) |
+| Time-windowed ListQueue for trail | Bounded memory, automatic eviction of old positions | ✓ Good |
+| Occlusion sentinels (not separate list) | Simpler data structure, gap positions preserved in sequence | ✓ Good |
+| Min-distance dedup in BallTracker | Prevents dot clustering at ~30fps during slow movement | ✓ Good |
+| `Positioned` must be direct Stack child | IgnorePointer goes inside Positioned, not outside — Flutter constraint | ✓ Good (fixed runtime crash) |
+| ballLostThreshold = 3 frames | ~100ms at 30fps — fast enough to feel responsive | ✓ Good |
 
 ---
-*Last updated: 2026-02-23 — SSD/TFLite path dropped from scope*
+*Last updated: 2026-02-24 after v1.1 milestone*

@@ -19,3 +19,25 @@
 
 ---
 *Archived: 2026-02-23*
+
+## v1.1 — Ball Tracking
+
+**Goal:** Prove that frame-to-frame ball tracking with a fading visual trail is technically feasible on-device at acceptable performance on the YOLO pipeline.
+
+**Shipped:**
+- Debug dot overlay with FILL_CENTER coordinate mapping, verified on iPhone 12
+- BallTracker service with time-windowed ListQueue, occlusion sentinels, and 30-frame auto-reset
+- TrailOverlay CustomPainter with fading dots, connecting lines, and occlusion gap skipping
+- Camera aspect ratio corrected from 16:9 to 4:3 for accurate Y-axis positioning
+- "Ball lost" badge overlay — appears within ~100ms of losing ball, disappears on re-detection
+- All features device-verified on iPhone 12 in both landscape orientations
+
+**Phases:** 6–8 (3 phases, 6 plans)
+**Scope change:** SSD/TFLite path dropped — YOLO only on both platforms.
+**Timeline:** 2026-02-23 → 2026-02-24
+
+**Outcome:** Ball tracking feasibility confirmed. Trail rendering, occlusion handling, and status badge all work at acceptable performance on iPhone 12. Galaxy A32 Android testing deferred (Android SDK not configured on dev Mac).
+
+---
+*Archived: 2026-02-24*
+
