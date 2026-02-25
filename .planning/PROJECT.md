@@ -36,7 +36,16 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 
 ### Active
 
-(None — planning next milestone)
+**Current Milestone: v1.2 Android Verification**
+
+**Goal:** Diagnose and fix the Android YOLO pipeline so that detection, ball tracking, trail rendering, and the "Ball lost" badge all work on Galaxy A32 at acceptable quality — achieving feature parity with the verified iOS behavior.
+
+**Target features:**
+- Diagnose why `onResult` callback is not firing on Android
+- Get YOLO TFLite inference producing results on Galaxy A32
+- Verify trail dots render accurately on Android (camera AR, coordinate mapping)
+- Verify "Ball lost" badge appears/disappears correctly on Android
+- Document Android-specific findings (camera AR, performance, detection quality)
 
 ### Out of Scope
 
@@ -62,8 +71,8 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 - **Target devices:** iPhone 12 (A14 Bionic, iOS 17.1.2), Samsung Galaxy A32 (SM-A325F, Android 12)
 - **Dev environment:** MacBook Pro (M5, 16GB), Flutter 3.38.9, Dart 3.10.8, Xcode 26.2
 - **Known limitation:** Tracking quality described as "very poor" on iPhone 12 — may be a model limitation rather than code issue
-- **Known gap:** Galaxy A32 Android testing deferred — Android SDK not configured on dev Mac
-- **Shipped milestones:** v1.0 (Detection Feasibility), v1.1 (Ball Tracking)
+- **Known gap (CRITICAL):** v1.2 recording analysis (2026-02-25) confirmed `onResult` callback is NOT firing on Android Galaxy A32. Across 42 seconds of recording with ball clearly visible, zero trail dots, zero "Ball lost" badge, zero detection overlays. Camera feed renders correctly. Root cause: plugin-level failure — `ultralytics_yolo` Android TFLite path not delivering inference results to Flutter layer.
+- **Shipped milestones:** v1.0 (Detection Feasibility), v1.1 (Ball Tracking), v1.2 (in progress)
 
 ## Constraints
 
@@ -92,5 +101,7 @@ Real-time soccer ball detection and tracking must run on-device with acceptable 
 | `Positioned` must be direct Stack child | IgnorePointer goes inside Positioned, not outside — Flutter constraint | ✓ Good (fixed runtime crash) |
 | ballLostThreshold = 3 frames | ~100ms at 30fps — fast enough to feel responsive | ✓ Good |
 
+| `onResult` not firing on Android | v1.2 recording analysis — zero overlays across 42s of footage | — Pending investigation |
+
 ---
-*Last updated: 2026-02-24 after v1.1 milestone*
+*Last updated: 2026-02-25 after v1.2 milestone start*

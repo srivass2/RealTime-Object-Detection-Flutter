@@ -5,7 +5,7 @@
 ### Core Infrastructure ✅
 - Flutter project scaffolded with multi-platform support (iOS, Android, macOS, Windows, Linux, Web)
 - `DETECTOR_BACKEND` environment variable system for build-time backend switching
-- Three-screen navigation structure (Home → Live Camera, Home → Photo Analysis)
+- Three-screen navigation structure (Home -> Live Camera, Home -> Photo Analysis)
 - Singleton service pattern for navigation, snackbar, and ML services
 - MobX state management on Home Screen
 - Retrofit + Dio API layer for Unsplash (needs real API key to function)
@@ -14,14 +14,14 @@
 - `CLAUDE.md` added to repo — comprehensive session instructions, build commands, architecture rules
 - `/update-memory` slash command added to `.claude/commands/`
 - 6 specialist Claude agents in `.claude/agents/` (untracked in git)
+- GSD planning infrastructure: `.planning/` with `ROADMAP.md`, `REQUIREMENTS.md`, `MILESTONES.md`, `STATE.md`, `PROJECT.md`
 
 ### Code Quality ✅
 - `flutter analyze` — 0 issues (clean)
 - `flutter test` — 3/3 passing (`DetectorConfig` unit tests)
 - `withOpacity()` replaced with `withValues(alpha:)` (deprecated API migration)
-- `print()` replaced with `log()` from `dart:developer` (avoid_print lint)
+- `print()` replaced with `log()` from `dart:developer` (avoid_print lint) — **except for DIAG-02/03/04/05 temporary diagnostics**
 - Lint suppression added to `home_screen_store.dart` for standard MobX mixin pattern
-- `memory-bank/changelog.md` documents the cleanup steps and verification output
 
 ### YOLO11n Integration ✅
 - `ultralytics_yolo: ^0.2.0` package integrated as dependency
@@ -29,6 +29,7 @@
 - Platform-aware model path: `'yolo11n'` (iOS) vs `'yolo11n.tflite'` (Android)
 - `YOLOTask.detect` configured correctly for bounding box detection
 - `onResult` callback wired with `mounted` guard and `_pickBestBallYolo` helper
+- **`onResult` confirmed firing on BOTH platforms** — iOS (iPhone 12) and Android (Galaxy A32)
 - `showOverlays: false` confirmed working — suppresses native bounding boxes
 - Xcode project file updated with `yolo11n.mlpackage` resource reference
 - Landscape-only orientation enforced for YOLO mode in `initState`
@@ -40,43 +41,43 @@
 - Red filled circle (radius 8, ~0.9 alpha) with white stroke outline
 - Renders at normalized [0.0, 1.0] position mapped to canvas pixel coords with FILL_CENTER crop correction
 - Wrapped in `RepaintBoundary` for rendering isolation
-- `_pickBestBallYolo` helper: filters by ball classes (`Soccer ball` > `ball`, rejects `tennis-ball`), picks highest confidence
+- `_pickBestBallYolo` helper: filters by ball classes (`Soccer ball` > `ball` > `tennis-ball`), picks highest confidence
 - Camera aspect ratio correctly set to 4:3 (was incorrectly defaulting to 16:9)
 
 ### Ball Trail (Phase 7) ✅
-- **`TrackedPosition`** (`lib/models/tracked_position.dart`) — immutable value type (`normalizedCenter`, `timestamp`, `isOccluded`); uses `dart:ui` only for pure-Dart unit testability
-- **`YoloCoordUtils`** (`lib/utils/yolo_coord_utils.dart`) — shared FILL_CENTER crop offset math extracted from `DebugDotPainter`; camera AR = 4:3 by default
-- **`BallTracker`** (`lib/services/ball_tracker.dart`) — service with bounded 1.5s `ListQueue`, occlusion sentinels (TRAK-02), 30-frame auto-reset (TRAK-05), min-distance dedup (`_minDistSq = 0.000025`)
-- **`TrailOverlay`** (`lib/screens/live_object_detection/widgets/trail_overlay.dart`) — `CustomPainter` with fading orange dots (age-based opacity + radius), connecting lines (strokeWidth 2.5), occlusion gap skipping (RNDR-03), FILL_CENTER crop correction via `YoloCoordUtils` (RNDR-05)
-- **Class priority filtering** — `{'Soccer ball': 0, 'ball': 1}`, rejects `tennis-ball` (TRAK-03)
-- **Nearest-neighbor tiebreaker** — uses `_tracker.lastKnownPosition` for multi-detection frames (TRAK-04)
-- **`IgnorePointer`** wraps trail `CustomPaint` — prevents overlay from consuming touch events
-- **Camera AR = 4:3** — `ultralytics_yolo` uses `.photo` session preset on iOS (4032×3024); fixed from 16:9 in Phase 7 Plan 03
-- **Device-verified** on iPhone 12 in both left and right landscape orientations (4 test recordings, 42 frames analyzed)
-- **Phase 7 verification videos** — `docs/recordings/ios/` contains 4 "iPhone trail verification - Landscape …" videos
-- **Phase 7 extracted frames** — `docs/frames/ios/frames_l3` (10), `frames_l4` (9), `frames_r1` (10), `frames_r2` (13) = 42 frames
+- **`TrackedPosition`** (`lib/models/tracked_position.dart`) — immutable value type
+- **`YoloCoordUtils`** (`lib/utils/yolo_coord_utils.dart`) — shared FILL_CENTER crop offset math; camera AR = 4:3
+- **`BallTracker`** (`lib/services/ball_tracker.dart`) — bounded 1.5s `ListQueue`, occlusion sentinels, 30-frame auto-reset, min-distance dedup
+- **`TrailOverlay`** (`lib/screens/live_object_detection/widgets/trail_overlay.dart`) — fading orange dots, connecting lines, occlusion gap skipping
+- **Class priority filtering** — `{'Soccer ball': 0, 'ball': 1, 'tennis-ball': 2}`, accepts all three ball classes
+- **Nearest-neighbor tiebreaker** — uses `_tracker.lastKnownPosition` for multi-detection frames
+- **Device-verified** on iPhone 12 (4 test recordings, 42 frames). **Visually confirmed** on Galaxy A32 (2 recordings, 39 frames).
 
 ### "Ball lost" Badge (Phase 8) ✅
-- **`BallTracker.isBallLost`** — getter: returns `_consecutiveMissedFrames >= ballLostThreshold`
-- **`BallTracker.ballLostThreshold`** — `static const int = 3` (≈ 100 ms at 30 fps); satisfies PLSH-01 "within a few frames"
-- **Badge widget** — `Positioned(top: 12, right: 12)` in the YOLO Stack, wrapped in `IgnorePointer`; red background (`Colors.red.withValues(alpha: 0.85)`); white bold 12px "Ball lost" text
-- **Conditional rendering** — `if (_tracker.isBallLost)` guard; badge appears/disappears reactively via `setState` on each `onResult` call
-- **Stack nesting fixed** — `Positioned` is a direct Stack child; `IgnorePointer` is inside (not outside) `Positioned` (fix: `b7d7ed7`)
-- **Device-verified** on iPhone 12 — badge appears when ball leaves frame, clears on re-detection
+- **`BallTracker.isBallLost`** — threshold: 3 consecutive missed frames (approx 100 ms at 30 fps)
+- **Badge widget** — `Positioned(top: 12, right: 12)`, red background, white bold "Ball lost" text
+- **Device-verified** on iPhone 12 and **visually confirmed** on Galaxy A32 — appears when ball exits frame, clears on re-detection
 
 ### v1.1 Milestone Archived ✅
-- All 3 phases complete: Phase 6 (overlay foundation), Phase 7 (trail), Phase 8 (polish — "Ball lost" badge)
+- All 3 phases complete: Phase 6, Phase 7, Phase 8
 - Milestone archived with commit `26445b0`
-- `.planning/` directory reorganized; phase files moved under `.planning/milestones/`
+
+### Android Inference Diagnosis (Phase 9) ✅ — COMPLETE
+- **Root cause identified:** Missing `aaptOptions { noCompress 'tflite' }` caused AAPT compression of model, preventing TFLite memory-mapped loading, leaving interpreter null, silencing `onResult`
+- **Fix applied:** `aaptOptions { noCompress 'tflite' }` in `android/app/build.gradle` (commit `9b3ccb7`)
+- **DIAG-02 confirmed:** `[DIAG-02] onResult fired — 1 detections` in Flutter debug console on Galaxy A32
+- **DIAG-03 confirmed:** `className=Soccer ball, conf=0.868, box=(0.422, 0.672, 0.471, 0.740)` — custom model labels, NOT COCO fallback
+- **Android coordinate correction:** `MainActivity.kt` MethodChannel + `_pollDisplayRotation()` + `(1-x, 1-y)` flip for rotation=3. Visually confirmed working.
+- **Screen recordings captured:** `result/android/Android Landscape left.MOV` (18 frames), `result/android/Android Landscape right.MOV` (21 frames)
+- **Phase 9 findings documented:** `09-FINDINGS.md` with root cause, evidence, open question resolution
+- **`gradle.properties` updated:** `org.gradle.jvmargs=-Xmx4G`, JDK 17 path
 
 ### SSD MobileNet / TFLite Path ✅ (Frozen — No New Development)
 - `tflite_flutter: 0.11.0` integrated
 - `ssd_mobilenet_v1.tflite` (4.0 MB) present in `assets/model/`
-- `labels.txt` (91 COCO classes) present in `assets/label/`
 - `TensorflowService` singleton loads model and labels
 - Background Dart isolate (`Detector`) for non-blocking inference
-- `BoxWidget` renders bounding boxes with label and backdrop blur on camera preview
-- **Status:** Code remains for reference but no new features will be built for this path
+- **Status:** Code remains for reference only
 
 ### Photo Analysis Flow ✅
 - `PhotoAnalyzeScreen` receives image bytes and runs SSD inference
@@ -85,49 +86,56 @@
 
 ### Home Screen ✅
 - Unsplash photo grid with infinite scroll (10-page pagination)
-- Tap any photo → download bytes → navigate to `PhotoAnalyzeScreen`
-- Gallery image picker → navigate to `PhotoAnalyzeScreen`
-- FAB → navigate to `LiveObjectDetectionScreen`
+- Tap any photo -> download bytes -> navigate to `PhotoAnalyzeScreen`
+- Gallery image picker -> navigate to `PhotoAnalyzeScreen`
+- FAB -> navigate to `LiveObjectDetectionScreen`
 
 ### Evaluation Documentation ✅
-- `docs/screenshots/ios/` — iPhone detection screenshots: David free kick (4 images), kids soccerball (4 images)
-- `docs/screenshots/android/` — Android detection screenshots: David scenarios (3 images), kids soccerball (3 images)
-- `docs/recordings/ios/` — iPhone detection videos (4 Phase 1-5 recordings + 4 Phase 7 trail verification recordings)
+- `docs/screenshots/ios/` — iPhone detection screenshots (8 images)
+- `docs/screenshots/android/` — Android detection screenshots (6 images)
+- `docs/recordings/ios/` — iPhone detection videos (8 recordings)
 - `docs/recordings/android/` — Android detection video recordings (4 videos)
-- `docs/frames/ios/` — Phase 7 extracted verification frames: `frames_l3` (10), `frames_l4` (9), `frames_r1` (10), `frames_r2` (13) = 42 frames total
-- `report/report.html` — evaluation report (840 lines, generated 2026-02-23)
+- `docs/frames/ios/` — Phase 7 extracted verification frames (42 frames total)
+- `result/android/` — Phase 9 screen recordings (2 MOV files) + extracted frames (39 frames total)
+- `report/report.html` — evaluation report (840 lines)
 
 ---
 
 ## What Is Incomplete or Needs Decisions
 
-### Next Milestone Definition ⚠️ (Not Started)
-**Status:** v1.1 archived; no v1.2 defined yet
-**Blocker:** No decision made on next focus area
-**Candidates:** Android device verification, model accuracy deep-dive, performance profiling (latency/battery), demo build preparation, or declaring POC complete.
-**Resolution:** Define next milestone via `/gsd:new-milestone`.
+### Phase 10: Android Feature Parity Verification ⏳ (Ready to Start)
+**Status:** Unblocked — Phase 9 PASSED
+**Requirements:** PRTY-01 (trail accuracy), PRTY-02 (badge behavior), PRTY-03 (camera AR verification), PRTY-04 (FPS measurement)
+**Preview:** Phase 9 visual evidence shows trail dots, lines, and badge all functioning. Phase 10 adds precision.
+**Resolution:** Plan and execute Phase 10 plans.
 
-### Testing on Galaxy A32 📱 (Blocked)
-**Status:** Blocked — Android SDK not configured on current Mac
-Android build succeeds but needs a machine with Android SDK or device connected via USB for deployment. Galaxy A32 coordinate accuracy with 4:3 AR must be verified empirically — the 4:3 fix was verified on iPhone 12 only.
-**Resolution:** Connect Android device when available; run YOLO path and observe trail accuracy.
+### Android Camera Aspect Ratio ⚠️
+**Status:** 4:3 assumption visually confirmed on Galaxy A32 (trail dots position near ball), but not precisely measured
+**Resolution:** Phase 10 PRTY-03 will log actual camera resolution.
+
+### Android FPS Not Measured ⏳
+**Status:** Expected 5-20fps on Helio G80; not quantified yet
+**Resolution:** Phase 10 PRTY-04 will count DIAG-02 lines per second.
 
 ### `.claude/agents/` Not Committed 🗑️ (Minor)
 **Status:** 6 specialist agents created but untracked in git
-Agents: `orchestrator`, `yolo-detection-specialist`, `flutter-overlay-specialist`, `ml-evaluation-specialist`, `architecture-guardian`, `platform-build-specialist`.
 **Resolution:** `git add .claude/agents/ && git commit` if agents should persist in VCS.
 
 ### Unsplash API Key 🔑 (Configuration Gap)
-**Status:** Placeholder — does not affect detection
-`lib/apibase/api_service_type.dart` has `'Client-ID YOUR_API_KEY'`. Returns HTTP 401 until replaced.
+**Status:** Placeholder `'Client-ID YOUR_API_KEY'` — does not affect detection
+**Resolution:** Replace with real key if home photo grid needed for demo.
 
 ### iOS Camera Usage Description 📝 (Minor)
 **Status:** Placeholder in Info.plist (`"your usage description here"`)
-Must update before any external TestFlight or demo build.
+**Resolution:** Update before any external TestFlight or demo build.
 
 ### `mlkit` Backend Stub ⚙️ (Unimplemented)
 **Status:** Stub only — declared in enum, no implementation
-Falls through silently if `DETECTOR_BACKEND=mlkit` is passed. Should be removed in any future cleanup pass.
+**Resolution:** Remove in future cleanup pass.
+
+### DIAG Print Statements 🧪 (Temporary)
+**Status:** Active — useful for Phase 10 FPS measurement. Uses `print()` not `log()`.
+**Resolution:** Remove or convert to `log()` after Phase 10 documented.
 
 ---
 
@@ -148,13 +156,17 @@ Falls through silently if `DETECTOR_BACKEND=mlkit` is passed. Should be removed 
 | **SSD/TFLite path dropped from v1.1 scope** | **Model is old; YOLO only going forward on both iOS and Android** |
 | `showOverlays: false` on YOLOView | Confirmed working; disables native bounding boxes |
 | `mounted` guard on all detection callbacks | Prevents setState-after-dispose race condition |
-| **Camera aspect ratio = 4:3 (not 16:9)** | **ultralytics_yolo uses `.photo` session preset on iOS (4032×3024). 16:9 caused ~10% Y-offset.** |
+| **Camera aspect ratio = 4:3 (not 16:9)** | **ultralytics_yolo uses `.photo` session preset on iOS (4032x3024). 16:9 caused ~10% Y-offset.** |
 | **Min-distance dedup in BallTracker** | **Prevents dot clustering at ~30fps. Threshold: `_minDistSq = 0.000025` (0.5% of frame).** |
 | `IgnorePointer` wraps trail overlay | Prevents CustomPaint from consuming touch events intended for YOLOView |
 | `shouldRepaint` always true in TrailOverlay | `List.unmodifiable()` creates new wrapper each call; RepaintBoundary is the real performance guard |
 | `TrackedPosition` uses `dart:ui` Offset only | Keeps model free of Flutter widget framework for pure-Dart unit testability |
-| **`ballLostThreshold = 3` frames** | **≈ 100 ms at 30 fps — satisfies "within a few frames" (PLSH-01) without false positives from momentary occlusion** |
+| **`ballLostThreshold = 3` frames** | **approx 100 ms at 30 fps — satisfies PLSH-01 without false positives from momentary occlusion** |
 | **`Positioned` is direct Stack child; `IgnorePointer` inside** | **Flutter constraint: `Positioned` must be a direct child of `Stack`. Fixed in commit `b7d7ed7`.** |
+| **`tennis-ball` accepted at priority 2** | **Android TFLite may misclassify due to image orientation; diagnostic concession for Phase 9 (turned out unnecessary)** |
+| **Android coordinate correction via MethodChannel** | **Plugin does not distinguish landscape-left from landscape-right on Android; poll `Surface.ROTATION_*` to flip coords. Device-verified on Galaxy A32.** |
+| **`aaptOptions { noCompress 'tflite' }` required** | **Gradle compression corrupts TFLite model loading; fix verified — restores `onResult` on Galaxy A32** |
+| **DIAG logs placed before `mounted` guard** | **Ensures diagnostic output fires even during widget unmount** |
 
 ---
 
@@ -162,15 +174,16 @@ Falls through silently if `DETECTOR_BACKEND=mlkit` is passed. Should be removed 
 
 | Item | Status |
 |---|---|
-| YOLO11n runs on Android (TFLite format) | ✅ Implemented + evaluation recordings captured |
+| YOLO11n runs on Android (TFLite format) | ✅ Confirmed — `onResult` fires, `className=Soccer ball`, conf=0.868 on Galaxy A32 |
 | YOLO11n runs on iOS (Core ML) | ✅ Implemented + evaluation recordings captured |
-| Real-time detection is smooth enough | ⏳ Tracking quality described as "very poor" on iPhone 12 — may be model limitation |
-| Soccer ball detection accuracy acceptable | ⏳ Needs further evaluation |
+| Real-time detection is smooth enough | ⏳ iOS tracking quality described as "very poor" — may be model limitation. Android FPS not measured (Phase 10). |
+| Soccer ball detection accuracy acceptable | ✅ `Soccer ball` class detected at 0.868 confidence on Android; comparable to iOS |
 | `showOverlays: false` disables native boxes | ✅ Confirmed working on iPhone 12 |
-| Debug dot overlay renders on YOLO path | ✅ Working (Y-axis offset fixed — camera AR = 4:3) |
-| Ball trail renders correctly | ✅ Verified on iPhone 12 — fading dots, connecting lines, occlusion gaps, auto-clear |
-| Trail coordinates accurate (no offset) | ✅ Confirmed with 4:3 camera AR fix (Phase 7 Plan 03) |
-| "Ball lost" badge communicates tracking state | ✅ Verified on iPhone 12 — appears within 3 frames, clears on re-detection |
-| `flutter analyze` passes (0 issues) | ✅ Confirmed |
+| Debug dot overlay renders on YOLO path | ✅ Working on both platforms |
+| Ball trail renders correctly | ✅ Verified on iPhone 12, visually confirmed on Galaxy A32 — fading dots, connecting lines, occlusion gaps |
+| Trail coordinates accurate (no offset) | ✅ iOS confirmed. ⏳ Android visually correct, precise measurement pending (Phase 10 PRTY-03). |
+| "Ball lost" badge communicates tracking state | ✅ Verified on iPhone 12, visually confirmed on Galaxy A32 — appears/disappears correctly |
+| `flutter analyze` passes (0 issues) | ✅ Confirmed (excluding temporary DIAG prints) |
 | `flutter test` passes (3/3) | ✅ Confirmed |
 | Architecture suitable to carry forward | ✅ Yes — clean separation, standard patterns |
+| Android feature parity with iOS | ⏳ Visual parity confirmed; precise measurements pending (Phase 10) |

@@ -1,210 +1,180 @@
 # Project Research Summary
 
-**Project:** Flare Football Object Detection POC — v1.1 Ball Tracking
-**Domain:** Flutter on-device ML — frame-to-frame ball tracking with fading visual trail overlay
-**Researched:** 2026-02-23
+**Project:** Flare Football — Android YOLO Pipeline Verification (v1.2 Milestone)
+**Domain:** Flutter on-device ML — cross-platform `ultralytics_yolo` TFLite debugging and Android inference verification
+**Researched:** 2026-02-25
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone adds real-time ball tracking with a fading visual trail to an existing Flutter POC that already has a working dual-pipeline detection architecture (YOLO11n and SSD MobileNet). The research confirms that everything needed — `CustomPainter`, `AnimationController`, `ListQueue`, `Stack` overlays — is available in the Flutter SDK itself. No new packages are required. The implementation pattern is well-established in both the OpenCV sports-tracking literature (PyImageSearch 32-frame deque, null-sentinel occlusion) and in Flutter-specific real-time overlay work.
+This research covers a tightly scoped engineering milestone: diagnosing and fixing the Android `onResult` silence bug in the YOLO pipeline on the Galaxy A32, then verifying feature parity with the already-confirmed iOS build. The failure mode is well-understood — the camera feed renders, but inference callbacks never reach Flutter. Research from direct plugin source inspection and official GitHub issues identifies a deterministic 7-step callback chain between the Android TFLite interpreter and the Dart `onResult` closure. The chain has 12 catalogued failure points, each with distinct logcat signatures that allow methodical elimination.
 
-The recommended approach is a bottom-up build: `TrackedPosition` value type first, then a pipeline-agnostic `BallTracker` service class, then a `TrailOverlay` CustomPainter, and finally wiring both detection paths into the screen. Both YOLO and SSD pipelines feed the same tracker via a one-line normalization adapter — the YOLO path uses `normalizedBox` directly (already 0–1), the SSD path divides `renderLocation` by `ScreenParams.screenPreviewSize`. Normalized coordinates are stored in the tracker and denormalized to pixels only at paint time inside the CustomPainter, ensuring correctness across device orientations and screen sizes.
+The recommended approach is diagnostic-first: do not change any code before running logcat. The overwhelming majority of reported Android `onResult` silences trace to one of three root causes — the model binary absent from `android/app/src/main/assets/`, the GPU delegate crashing on the Galaxy A32's Mali-G52/Helio G80 chipset, or a post-`setState` EventChannel subscription that the plugin drops and does not reliably reattach. Each of these has a low-cost fix (copy model file, add `useGpu: false`, or isolate `YOLOView` into its own `StatefulWidget`). Attempting code changes before confirming which step in the chain has failed wastes effort and can mask the actual bug.
 
-The dominant risks are not algorithmic — they are integration gotchas specific to this codebase. Four issues must be resolved before any trail logic is built: (1) confirming that a Flutter `Stack` child renders visibly above `YOLOView` (platform view Z-order is not guaranteed on all Android rendering modes), (2) verifying that `YOLOView.onResult` coordinate values map correctly to screen position on both iOS and Android (known per-platform offset bug in issue #105), (3) ensuring all detection callbacks guard against `setState()` after `dispose()` with `if (!mounted) return`, and (4) explicitly locking the SSD path to portrait to avoid the `ScreenParams` landscape coordinate break. None of these are blockers — all have documented solutions — but they must be addressed in Phase 1 before trail accumulation begins.
-
----
+The main risk for this milestone is timeline drift caused by working on the wrong layer. Android inference performance on the Helio G80 is expected to be 5-20fps (well below iPhone 12's ~30fps), and this difference is not a bug — it is a finding to document. Coordinate accuracy, badge state transitions, and trail rendering are all expected to work correctly once `onResult` fires, because the `BallTracker` and `TrailOverlay` logic is platform-agnostic and was already validated on iOS. The one genuine uncertainty is whether the FILL_CENTER camera AR calculation requires an Android-specific constant — the plugin targets 4:3 on Android via CameraX `RATIO_4_3`, matching iOS, but the actual delivered resolution on the Galaxy A32 has not yet been device-verified.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The entire implementation uses Flutter SDK built-ins. No new `pubspec.yaml` entries are needed. The key additions are: `dart:collection ListQueue` for the bounded position history buffer (O(1) add/remove), `CustomPainter` + `CustomPaint` for trail rendering on a transparent canvas layer above the camera view, `AnimationController` with `TickerProviderStateMixin` to drive per-frame repaints at vsync-synchronized 60/120 Hz, and `RepaintBoundary` to scope repaints to the trail layer only — critical for performance on Galaxy A32.
+The entire stack for this milestone is pre-existing and frozen. No new dependencies are introduced. The diagnostic tooling is `adb logcat` filtered to seven plugin log tags (`YOLOView`, `YOLOPlatformView`, `YOLOPlatformViewFactory`, `CustomStreamHandler`, `ObjectDetector`, `YOLOFileUtils`, `YOLOPlugin`) plus Flutter debug console output. Android Studio or Android NDK debugging are optional but not required — the plugin's existing log statements are sufficient to identify which of the 7 chain steps is failing.
 
-**Core technologies:**
-- `dart:collection ListQueue`: position history buffer — O(1) amortized add/remove, no external package needed
-- `CustomPainter` + `CustomPaint`: trail rendering — canonical Flutter 2D canvas; zero widget allocation per frame
-- `AnimationController` (vsync): repaint driver — frame-synchronized ticks; `Timer.periodic` would drift at 60 Hz and must NOT be used
-- `RepaintBoundary`: repaint isolation — wraps the trail layer so camera frames do not cascade a full-tree repaint
-- `Stack` + `IgnorePointer`: overlay placement — existing pattern in the codebase; trail must not consume touch events
-- `dart:ui Offset`, `Rect`, `Canvas`, `Paint`: coordinate and drawing primitives — already available
-
-See `.planning/research/STACK.md` for full alternatives analysis and version compatibility table.
+**Core technologies (all pre-existing):**
+- `ultralytics_yolo 0.2.0` (locked): Primary ML pipeline — the bug lives in its Android native layer; direct plugin source has been read and all failure paths catalogued
+- CameraX `1.2.3` (plugin-internal): Camera pipeline in `YOLOView.kt`; explicitly targets 4:3 aspect ratio via `AspectRatio.RATIO_4_3` — this matches the iOS 4:3 assumption in `YoloCoordUtils`
+- LiteRT `1.4.0` (plugin-internal): TFLite inference in `ObjectDetector.kt`; GPU delegate may fail silently on Mali-G52; `useGpu: false` is the safe fallback
+- `adb logcat`: Primary diagnostic tool — all critical failure paths produce distinct log signatures; tag filters documented in STACK.md
+- `tflite_flutter 0.11.0` (pinned): SSD MobileNet fallback path — must not be bumped; the `app/build.gradle` TFLite exclude block prevents conflict with LiteRT 1.4.0 and must not be removed
 
 ### Expected Features
 
-The v1.1 milestone must deliver enough to answer the research question: "Is frame-to-frame tracking with a fading trail feasible on-device at acceptable performance?" Research identifies a clear MVP boundary and a set of post-validation additions.
+This milestone does not add features — it verifies existing feature parity on Android. The feature set is defined by what "Android working correctly" looks like.
 
-**Must have (v1.1 table stakes):**
-- Center-point extraction from `YOLOResult.normalizedBox` (YOLO path) — prerequisite for everything else
-- Center-point extraction from `DetectedObjectDm.renderLocation` normalized by `ScreenParams` (SSD path)
-- `BallTracker` service: normalized `Offset?` input, bounded position queue (max 45 entries, ~1.5s at 30fps), occlusion sentinel (`null`/`isOccluded` flag), auto-clear after 30 consecutive missed frames
-- `TrailPainter` (`CustomPainter`): dots with fading opacity + tapering radius, polyline skipping null/occluded segments
-- Trail overlay on both YOLO and SSD paths independently (no cross-pipeline shared state)
-- Normalized coordinate storage throughout; denormalize only at paint time
-- Landscape layout respected for YOLO path; SSD path locked to portrait
+**Must have (table stakes — v1.2 milestone blockers):**
+- `onResult` fires on Galaxy A32 with YOLO backend — confirmed via logcat or debug log; this is the gateway to all other verification
+- Trail dots appear on Android when ball is in frame — depends entirely on `onResult` firing; no code change to `TrailOverlay` or `BallTracker` is expected
+- Trail dots are spatially accurate (no systematic Y-offset) — requires camera AR verification; 4:3 is expected but not yet device-confirmed
+- "Ball lost" badge appears when ball exits frame and clears on re-entry — state transition logic is platform-agnostic; depends on `onResult` firing on frames with empty results
+- FPS measured and documented (even if result is "too slow") — Galaxy A32 Helio G80 CPU-only inference expected at 5-12fps; this is a finding, not a bug
 
-**Should have (add after table stakes are stable, within v1.1 if time allows):**
-- "Ball lost" badge overlay — communicates model loss vs. genuine off-camera
-- Bounding box center dot (current-frame marker) — aids trail readability in evaluation recordings
-- EMA smoothing — only if evaluation recordings show excessive jitter; not a pre-optimization
+**Should have (diagnostic tooling — useful but not blockers):**
+- Frame counter badge overlay — shows "N results this frame" without logcat; only add if logcat-based confirmation is insufficient for evaluation recordings
+- Coordinate dump overlay — shows raw `normalizedBox.center` values; only add if trail accuracy is ambiguous after primary diagnosis
+- Camera AR probe log — log `imageProxy.width x imageProxy.height` on first Android frame to confirm 4:3 assumption
 
-**Defer (v2+, real product scope):**
-- Kalman filter predictive tracking — significant complexity, needs per-device tuning
-- Trail color by speed — requires calibrated pixel-to-world mapping to be meaningful
-- Multi-ball tracking with stable IDs — separate research problem
-- Configurable trail length UI control — POC does not need runtime tuning
-
-See `.planning/research/FEATURES.md` for full feature dependency graph and prioritization matrix.
+**Defer (out of scope for this milestone):**
+- EMA smoothing or Kalman filter — masks raw performance data that the POC needs to capture
+- Automatic camera AR detection at runtime — one-time empirical measurement plus a constant is sufficient
+- Confidence threshold tuning for Android — lower TFLite confidence scores (0.8-0.9 vs Core ML's >0.99) are expected; the class filter already handles this correctly
 
 ### Architecture Approach
 
-The architecture is a clean three-layer addition on top of the existing screen: a `TrackedPosition` value type (no Flutter dependencies), a `BallTracker` service class (plain Dart, no ML dependencies, held as a field of `_LiveObjectDetectionScreenState`), and a `TrailOverlay` CustomPainter widget (screen-specific, co-located with the screen in `lib/screens/live_object_detection/widgets/`). Each detection pipeline has a one-line adapter that converts its native result format to a normalized `Offset` before calling `tracker.update()`. Both pipelines then feed the same `BallTracker` and the same `TrailOverlay` painter, with zero cross-pipeline dependencies.
+The Android data flow is a linear 7-step chain from CameraX `ImageProxy` to the Dart `onResult` closure. Each step has been source-verified and all failure points catalogued. The chain is: `CameraX → YOLOView.onFrame() → ObjectDetector.predict() → JNI postprocess() → convertResultToStreamData() → EventChannel.EventSink → Dart _handleDetectionResults() → widget.onResult()`. The Dart-side trail rendering (`_pickBestBallYolo() → BallTracker.update() → TrailOverlay.paint()`) is downstream of `onResult` and requires no changes. The only permanent fix candidates are: placing the model binary, adding `useGpu: false`, fixing the misleading camera AR comment in `yolo_coord_utils.dart`, and potentially adding a `Platform.isAndroid` branch to the `cameraAR` constant in `TrailOverlay` if empirical measurement shows the Galaxy A32 delivers different AR geometry.
 
-**Major components:**
-1. `TrackedPosition` (`lib/models/tracked_position.dart`) — value type: `normalizedCenter: Offset`, `timestamp: DateTime`, `isOccluded: bool`; no dependencies; fully unit-testable
-2. `BallTracker` (`lib/services/ball_tracker.dart`) — accepts normalized `Offset?` per frame; maintains time-windowed history (3-second trail window); handles occlusion via sentinel values; `reset()` on dispose
-3. `TrailOverlay` (`lib/screens/live_object_detection/widgets/trail_overlay.dart`) — `CustomPainter`; age-based opacity via `DateTime.now()` in `paint()`; skips line segments crossing occluded points; maps normalized coords to canvas pixels via `Size`
-4. `_pickBestBall()` helper (private method in screen state) — filters by class name priority (`Soccer ball` > `ball`; rejects `tennis-ball`), then picks nearest-to-last-known-position as tiebreaker
-5. `LiveObjectDetectionScreen` modifications — wires `_tracker` into both pipeline callbacks; adds `CustomPaint` to both Stack trees; sets `showOverlays: false` on `YOLOView`
+**Major components and responsibilities:**
 
-**Build order (bottom-up, each layer testable before the next):**
-1. `TrackedPosition` — no dependencies
-2. `BallTracker` — depends on `TrackedPosition` only; unit-testable without Flutter
-3. `TrailOverlay` — can be developed with a hardcoded trail before live data is wired
-4. `LiveObjectDetectionScreen` changes — YOLO path first (zero coordinate math), then SSD path
-
-See `.planning/research/ARCHITECTURE.md` for full data flow diagrams, coordinate system table, and complete code stubs for all components.
+1. `YOLOPlatformViewFactory` (Kotlin) — creates the platform view per Flutter `AndroidView`, wires the EventChannel and MethodChannel; failure here produces a blank camera, not just zero callbacks
+2. `ObjectDetector` (Kotlin) — TFLite interpreter, GPU delegate, JNI NMS postprocessing; `predictor = null` on any load failure causes silent no-op in every subsequent `onFrame()` call
+3. `CustomStreamHandler` (Kotlin) — holds the `EventSink`; sink becomes non-null only after Dart calls `receiveBroadcastStream().listen()`; a race window at startup can drop early frames (mitigated by 500ms retry)
+4. `_YOLOViewState` (Dart) — subscribes to EventChannel, parses `detections` map, calls `widget.onResult`; a `setState`-triggered rebuild can cause `didUpdateWidget` to evaluate `callbacksChanged`, potentially killing the subscription if reconnect logic is in an inconsistent state
+5. `LiveObjectDetectionScreen` (Dart) — `onResult` callback, `_pickBestBallYolo()`, `BallTracker.update()/markOccluded()`, `setState`; no changes expected here unless class name strings differ between Android TFLite model metadata and iOS Core ML model metadata
 
 ### Critical Pitfalls
 
-7 pitfalls were identified. The top 5 by risk and phase impact:
+1. **EventChannel drops after `setState` rebuild (Pitfall 1)** — `_YOLOViewState.didUpdateWidget` evaluates `callbacksChanged`; if the parent widget rebuilds frequently (which it does on every `onResult` detection), the plugin's internal reconnect logic can enter an inconsistent state where `_resultSubscription` is non-null but delivering nothing. Avoid by isolating `YOLOView` in its own `StatefulWidget` separate from the detection state; diagnose with `log()` only, never with stateful counter widgets (which can accidentally trigger the reconnect logic and mask the bug).
 
-1. **YOLOView native overlay not disabled** — Flutter `CustomPaint` and native bounding boxes both render simultaneously, producing visual incoherence. Prevention: set `showOverlays: false` on `YOLOView`; confirm the parameter exists in `ultralytics_yolo ^0.2.0` by reading the pub-cache source before writing any trail code. Phase 1 gate.
+2. **GPU delegate silently fails on Galaxy A32, leaving `predictor = null` (Pitfall 2)** — YOLO11n TFLite models use TFLite ops (INT64 CAST, ADD v4) not supported by the Mali-G52 GPU delegate. The `catch` in `ObjectDetector` drops the delegate silently; if the failure is deeper (whole `setModel` throws), `predictor` is null and every `onFrame()` is a no-op. Camera renders normally. Zero callbacks to Flutter. Fix: add `useGpu: false` to `YOLOView` as the first diagnostic step.
 
-2. **Coordinate space mismatch between `onResult` data and overlay canvas** — Known platform-specific offset bugs (GitHub issue #105) cause trail dots to appear offset from the actual ball. `ScreenParams` was designed for portrait and breaks under landscape. Prevention: verify coordinate mapping with a single debug dot on both iOS and Android before building trail accumulation. Phase 1 gate.
+3. **Model binary absent or compressed in APK (Pitfall 5)** — `yolo11n.tflite` is gitignored and must be manually placed in `android/app/src/main/assets/`. Additionally, `aaptOptions { noCompress 'tflite' }` must be present in `android/app/build.gradle` — without it, the Android Gradle Plugin may compress the binary in the APK, causing `AssetManager` to return corrupted data and model load to fail silently. This is the single most likely root cause and must be verified first.
 
-3. **`setState()` called after dispose** — YOLO `onResult` and SSD `resultsStream` callbacks can deliver results after the screen is disposed when navigating away. Prevention: `if (!mounted) return;` must be the first line of every detection callback. Already present in the SSD stream listener; must be added to `onResult`. Phase 1 gate.
+4. **Diagnostic logging via stateful widgets masks the EventChannel bug (Pitfall 7)** — adding a visible frame counter widget that calls `setState` can accidentally trigger the EventChannel reconnect retry, making `onResult` appear to work only when the diagnostic widget is present. All diagnosis must use `log()` from `dart:developer` only, not new stateful widgets.
 
-4. **Unbounded trail `List` causes memory growth and paint jank** — At 30fps, an uncapped `List.add` produces 900–1800 entries per minute. Paint time grows linearly; jank appears after ~60 seconds on Galaxy A32. Prevention: use `Queue` or `ListQueue` with a hard cap from the first commit. Never add an unbounded trail list. Phase 2 must-have.
-
-5. **Class label ambiguity — tracking the wrong detection** — `results.first` or `results.maxBy(confidence)` can pick a stationary `tennis-ball` over the moving soccer ball. Prevention: filter to `Soccer ball` and `ball` only; use nearest-to-last-known-position as tiebreaker with a maximum-distance threshold for occlusion detection. Phase 2 requirement.
-
-See `.planning/research/PITFALLS.md` for full pitfall descriptions, warning signs, recovery costs, and the complete "looks done but isn't" checklist.
-
----
+5. **`normalizedBox` coordinates transposed on Android when orientation flag is wrong (Pitfall 6)** — `ObjectDetector.predict()` is called with `(bitmap, w, h, ...)` in landscape and `(bitmap, h, w, ...)` in portrait. If `Configuration.ORIENTATION_LANDSCAPE` resolves incorrectly during the 1-2 frame window after `setPreferredOrientations`, `origShape` is transposed and `xywhn` values are relative to a transposed coordinate space. Trail dots appear on the wrong axis. Not a persistent bug — it affects only the first 2-3 frames. Note during trail accuracy verification; do not use those frames as evidence of a systematic offset.
 
 ## Implications for Roadmap
 
-Based on combined research, the dependency structure mandates a two-phase build with a clear Phase 1 guard before any trail state is accumulated.
+Based on research, the milestone decomposes into two sequential phases with a clear dependency: Phase 2 cannot start until Phase 1's blocker (`onResult` firing) is resolved.
 
-### Phase 1: Overlay Architecture and Coordinate Validation
+### Phase 1: Android Inference Pipeline Diagnosis and Fix
 
-**Rationale:** Three Phase 1 pitfalls (native overlay conflict, coordinate mismatch, disposal race) are prerequisite correctness gates. Building trail accumulation on top of broken coordinates produces work that must be entirely discarded. Architecture research explicitly documents this build order. These are quick to validate but catastrophically expensive to fix after trail logic is built on top.
+**Rationale:** All other verification work is blocked on `onResult` firing. There is no point measuring coordinate accuracy, badge timing, or FPS until callbacks are confirmed flowing. The diagnostic order is strictly sequenced: model file → logcat → `showOverlays: true` canary → `useGpu: false` → EventChannel isolation. Each step either closes the investigation or narrows the failure to one remaining layer.
 
-**Delivers:** A confirmed, correct foundation — a Flutter overlay visibly renders above `YOLOView` on both platforms; a single debug dot reliably centers on the ball in real-time on both iOS (iPhone 12) and Android (Galaxy A32); all detection callbacks include `mounted` guards; SSD path orientation is locked and documented; `showOverlays: false` is confirmed available and applied.
+**Delivers:** Android YOLO inference results flowing to Flutter `onResult` callback on Galaxy A32; root cause identified and fixed; logcat evidence captured.
 
-**Addresses (from FEATURES.md):** Center-point extraction (YOLO), center-point extraction (SSD), normalized coordinate storage. These table stakes features are proven correct here before trail accumulation is added.
+**Addresses:**
+- P1 feature: `onResult` fires on Android (confirmed via `log()` in debug console)
+- P1 feature: Class name strings verified (log `results.map((r) => r.className)` in `onResult`)
 
-**Avoids (from PITFALLS.md):** Pitfall 1 (native overlay conflict), Pitfall 2 (coordinate mismatch), Pitfall 5 (disposal race condition), Pitfall 7 (SSD landscape coordinate break).
+**Avoids:**
+- Pitfall 5: Verify `aaptOptions { noCompress 'tflite' }` in `build.gradle` before any other step
+- Pitfall 2: Add `useGpu: false` as first attempted fix if logcat shows no "ObjectDetector initialized"
+- Pitfall 7: Use `log()` only; no stateful diagnostic widgets during this phase
+- Pitfall 1: Isolate `YOLOView` in its own `StatefulWidget` if EventChannel is confirmed dropping after `setState`
 
-**Research flag:** Standard patterns, no additional research needed. Flutter platform view overlay and coordinate normalization are well-documented.
+**Pre-flight checklist (must complete before writing any code):**
+1. Confirm `android/app/src/main/assets/yolo11n.tflite` is physically present
+2. Confirm `aaptOptions { noCompress 'tflite' }` is in `android/app/build.gradle`
+3. Run `flutter clean && flutter pub get` and confirm plugin version is `0.2.0` via `flutter pub deps`
+4. Attach `adb logcat` filter before launching the app
 
----
+**Research flags:** Standard patterns — this phase follows the documented 7-step diagnostic protocol from STACK.md. No additional research needed.
 
-### Phase 2: Trail Accumulation and Rendering
+### Phase 2: Android Feature Parity Verification
 
-**Rationale:** Trail logic depends entirely on Phase 1 correctness. Once coordinates are proven valid, the `BallTracker` → `TrailOverlay` implementation follows a well-documented pattern (PyImageSearch deque + null-sentinel + CustomPainter opacity gradient). The architecture research provides complete code stubs for all three new components. Build order is dictated by dependencies: `TrackedPosition` first, then `BallTracker`, then `TrailOverlay`, then wire into screen.
+**Rationale:** Once `onResult` fires, the trail and badge logic is expected to work without code changes — `BallTracker` and `TrailOverlay` are platform-agnostic. This phase focuses on empirical verification: camera AR, coordinate accuracy, badge state transitions, and FPS measurement. These are evaluation findings, not engineering tasks. The only code change likely needed is fixing the misleading 16:9 comment in `yolo_coord_utils.dart` and possibly updating the `cameraAR` constant if empirical measurement shows the A32 delivers AR geometry different from 4:3.
 
-**Delivers:** Full v1.1 MVP — bounded position queue, occlusion gap handling (null sentinels), fading dot trail with radius taper, auto-clear on 30+ consecutive missed frames, trail overlay on both YOLO and SSD paths independently.
+**Delivers:** Documented evaluation data for Android: trail accuracy (with ball, screen recording), badge behavior (screen recording), FPS measurement (logged timestamps), camera AR finding (logged `imageProxy` dimensions), comparison to iOS baseline.
 
-**Uses (from STACK.md):** `ListQueue` for bounded history, `CustomPainter` + `RepaintBoundary` for isolated trail rendering, `shouldRepaint` implementation to avoid spurious repaints.
+**Addresses:**
+- P1 feature: Trail dots appear and are spatially accurate
+- P1 feature: "Ball lost" badge appears and clears correctly
+- P1 feature: FPS documented
+- P1 diagnostic: Camera AR probe log
 
-**Implements (from ARCHITECTURE.md):** `TrackedPosition`, `BallTracker`, `TrailOverlay`, `_pickBestBall()` helper with class priority filter and nearest-neighbor tiebreaker.
+**Avoids:**
+- Pitfall 3: Verify Android camera AR is 4:3 (expected from plugin source) before accepting trail accuracy as correct; fix misleading comment in `yolo_coord_utils.dart`
+- Pitfall 4: Discard first 2-3 frames after screen entry from coordinate accuracy assessment (orientation lock race)
+- Pitfall 6: Log first valid `normalizedBox` and verify center values are approximately (0.5, 0.5) for ball at frame center
 
-**Avoids (from PITFALLS.md):** Pitfall 3 (unbounded list — `Queue` cap mandatory from first commit), Pitfall 4 (full-tree repaint — `shouldRepaint` and `RepaintBoundary` required), Pitfall 6 (class label ambiguity — `_pickBestBall()` filter built in).
-
-**Research flag:** Standard patterns, no additional research needed. All implementation patterns are documented in ARCHITECTURE.md with complete code stubs.
-
----
-
-### Phase 3: Polish and Post-Validation Enhancements (if POC continues)
-
-**Rationale:** These features add evaluator-facing value but do not affect the core research question. Build only after Phase 2 trail is validated in evaluation recordings on both target devices.
-
-**Delivers:** "Ball lost" badge overlay, bounding box center dot (current-frame marker), optional EMA smoothing if jitter is observed in recordings.
-
-**Addresses (from FEATURES.md):** P2 priority features — all verified as low complexity, additive to existing trail without architectural changes.
-
-**Avoids:** Performance trap of `AnimationController` ticking at 60fps (use timestamp-based opacity in `paint()` instead of a separate ticker).
-
-**Research flag:** Standard patterns, skip research-phase. These are straightforward Flutter UI additions with no new architectural concerns.
-
----
+**Research flags:** Standard patterns — camera AR math is documented; all verification steps are observable on device. If AR discrepancy is found (actual Android AR differs from 4:3), ARCHITECTURE.md documents the exact `YoloCoordUtils` change needed (one constant or a `Platform.isAndroid` branch).
 
 ### Phase Ordering Rationale
 
-- **Phase 1 before Phase 2 is non-negotiable.** Coordinate validation is a correctness prerequisite. The PITFALLS.md research is explicit: "Write a coordinate normalizer before any trail state management." Building `BallTracker` on wrong coordinates requires discarding all trail logic and starting over.
-- **YOLO path before SSD path within Phase 2.** `YOLOResult.normalizedBox` is already in 0–1 space — zero coordinate math, fastest path to a visible trail. SSD path requires the `ScreenParams` normalization division and depends on `_init()` having completed before `screenPreviewSize` is valid.
-- **`TrackedPosition` before `BallTracker` before `TrailOverlay`.** Dependencies flow in one direction. Each layer is independently testable before the next is wired.
-- **No Phase 3 features before Phase 2 is evaluated.** EMA smoothing in particular must not be added pre-emptively — it adds lag and should only be introduced if evaluation recordings show actual jitter.
+- Phase 1 must precede Phase 2 because `onResult` is a hard dependency for all other observable behaviors — trail, badge, FPS, and coordinate accuracy are all downstream of the callback
+- Within Phase 1, the diagnostic steps are ordered by likelihood (model file missing is the most common cause) and by isolation value (`showOverlays: true` canary confirms native inference before investigating the Dart EventChannel path)
+- Within Phase 2, camera AR probe must precede trail accuracy sign-off; logging raw `normalizedBox` values must precede concluding that any observed dot offset is an AR problem vs a coordinate transposition problem (Pitfall 6)
+- No phase requires new Dart or Kotlin code beyond minor diagnostic additions (all temporary) and one possible constant change in `yolo_coord_utils.dart`
+- The `ballLostThreshold = 3 frames` value may warrant documentation of its perceptual timing at Android FPS (at 5fps, 3 frames = 600ms badge latency vs ~100ms on iOS); do not change the value, document the behavior
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **None identified.** All phases use well-documented Flutter SDK patterns and architecture decisions supported by direct source code inspection of `ultralytics_yolo ^0.2.0`.
-
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** Flutter platform view overlay and coordinate normalization — documented in official Flutter platform integration docs and ultralytics_yolo GitHub source.
-- **Phase 2:** `CustomPainter` trail rendering with `ListQueue` — PyImageSearch canonical pattern directly applicable; complete code stubs in ARCHITECTURE.md.
-- **Phase 3:** UI badge and center dot — trivial Flutter widgets; no research needed.
-
----
+Phases with standard patterns (skip additional research-phase):
+- **Phase 1:** All failure modes and their logcat signatures are fully documented from direct plugin source inspection. The diagnostic protocol is sequenced and complete. No unknowns remain in the tooling layer.
+- **Phase 2:** Camera AR math is source-verified (CameraX `RATIO_4_3` confirmed in `YOLOView.kt` line 529). The FILL_CENTER correction is already implemented and verified on iOS. Empirical device measurement is the only remaining step.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies are Flutter SDK built-ins; no version compatibility concerns. `YOLOResult.normalizedBox` confirmed by direct pub-cache source inspection. No new packages = no supply chain risk. |
-| Features | MEDIUM-HIGH | MVP boundary is clear and well-justified. Table stakes features are confirmed against official YOLO Flutter API docs and PyImageSearch canonical implementations. P2 features are additive and low-risk. |
-| Architecture | HIGH | Codebase read directly; `ultralytics_yolo` source inspected; `YOLOResult` field names confirmed. Complete code stubs provided for all 3 new components. Two anti-patterns (separate tracker per pipeline, pixel coord storage) have documented counter-examples. |
-| Pitfalls | HIGH | 5 of 7 pitfalls sourced from official Flutter docs + GitHub issues in the exact packages used. `showOverlays: false` availability confirmed via GitHub issue #255. Coordinate offset bug confirmed via issue #105. |
+| Stack | HIGH | All relevant plugin source files read directly from pub-cache (`YOLOView.kt`, `ObjectDetector.kt`, `YOLOPlatformView.kt`, `YOLOPlatformViewFactory.kt`, `yolo_view.dart`). No inference — direct source reading. |
+| Features | HIGH | Feature set is defined by existing iOS-verified behavior. Android differences are catalogued from plugin source and confirmed GitHub issues. FPS estimate (5-20fps) is LOW confidence pending device measurement. |
+| Architecture | HIGH | Complete 7-step callback chain traced from CameraX `ImageProxy` to Dart `onResult`. All 12 failure points identified with logcat signatures. Component boundaries and responsibilities verified against actual source. |
+| Pitfalls | HIGH | All 7 pitfalls sourced from: direct plugin source inspection, official CHANGELOG.md entries, and confirmed GitHub issues (#121, #292, #344, #393, #18522, #20302). One pitfall (misleading AR comment) sourced from existing codebase analysis. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **`showOverlays: false` exact API:** Research confirms the parameter was requested (issue #255) and architecture assumes it exists in `^0.2.0`. The very first step of Phase 1 must verify this by reading the installed pub-cache source for `YOLOView` constructor. If the parameter is not present, Phase 1 pivots to a platform plugin patch (medium complexity, documented recovery path in PITFALLS.md).
+- **Galaxy A32 actual inference FPS:** Research estimates 5-20fps based on Helio G80 CPU specs and YOLO11n model complexity. Actual device measurement is required. FPS directly affects `ballLostThreshold` perceived timing — at 5fps, 3-frame threshold = 600ms badge latency (versus ~100ms on iOS). Consider whether threshold needs an Android-specific value, but document raw behavior first before making any change.
 
-- **`onResult` coordinate accuracy on Galaxy A32:** Issue #105 documents platform-specific coordinate offsets but does not provide an exact correction formula for Android. Phase 1 must empirically verify coordinates with the debug dot on the actual A32 device. If offset correction is needed, it can be applied as a one-time calibration multiplier in `_pickBestBall()`.
+- **Camera AR on Galaxy A32 empirically:** Plugin source confirms CameraX targets 4:3. Actual delivered resolution depends on hardware sensor support. Log `imageProxy.width x imageProxy.height` on first frame and compare. If delivered AR is not 4:3, one constant change is needed in `YoloCoordUtils`.
 
-- **`ScreenParams.screenPreviewSize` timing:** The SSD path wires `ScreenParams` in `_init()`. Phase 2 SSD trail wiring must confirm `screenPreviewSize` is valid (non-null, non-zero) before the first `resultsStream` event arrives. If events can arrive before `_init()` completes, a null-guard is needed in the SSD adapter.
+- **`onResult` firing on empty frames (no ball):** Badge logic depends on `onResult` firing with an empty results list when no ball is in frame, not just when a ball is found. Research could not confirm whether Android `onResult` fires for zero-detection frames — this must be verified empirically. If it does not fire on empty frames, `_consecutiveMissedFrames` never increments and the "Ball lost" badge never shows.
 
----
+- **Class name strings from Android TFLite model metadata:** Custom model labels ("Soccer ball", "ball", "tennis-ball") are embedded as appended ZIP metadata in the `.tflite` file. `YOLOFileUtils.loadLabelsFromAppendedZip` should extract them. If metadata extraction fails, COCO 80 classes are used as fallback and `_pickBestBallYolo()` finds no matches. Verify by logging `results.map((r) => r.className)` on first `onResult` call.
 
 ## Sources
 
-### Primary (HIGH confidence)
-- `~/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/lib/models/yolo_result.dart` — confirmed `YOLOResult.normalizedBox: Rect`, `YOLOResult.className: String`, `YOLOResult.confidence: double` fields
-- `~/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/lib/yolo_view.dart` — confirmed `onResult: Function(List<YOLOResult>)?`, `showOverlays` parameter, `Stack`-based build
-- [Flutter API — CustomPainter](https://api.flutter.dev/flutter/rendering/CustomPainter-class.html) — `repaint`, `shouldRepaint`, `paint(Canvas, Size)` lifecycle
-- [Flutter API — AnimationController](https://api.flutter.dev/flutter/animation/AnimationController-class.html) — vsync-aware ticker lifecycle
-- [Flutter API — RepaintBoundary](https://api.flutter.dev/flutter/widgets/RepaintBoundary-class.html) — repaint scoping for overlays
-- [Flutter API — ListQueue](https://api.flutter.dev/flutter/dart-collection/ListQueue-class.html) — O(1) add/remove, bounded ring-buffer behavior
-- [Flutter Docs — Platform Views (Android)](https://docs.flutter.dev/platform-integration/android/platform-views) — Z-order behavior of Flutter widgets above PlatformViewSurface
-- Existing codebase: `lib/screens/live_object_detection/live_object_detection_screen.dart`, `lib/services/detector.dart`, `lib/models/detected_object/detected_object_dm.dart`, `lib/models/screen_params.dart`, `lib/config/detector_config.dart`
+### Primary (HIGH confidence — direct source inspection)
+- `/Users/shashank/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/android/src/main/kotlin/com/ultralytics/yolo/YOLOView.kt` — complete `onFrame()` loop, `startCamera()`, `setTargetAspectRatio(RATIO_4_3)` confirmed
+- `/Users/shashank/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/android/src/main/kotlin/com/ultralytics/yolo/ObjectDetector.kt` — GPU delegate setup, silent `predictor = null` failure path
+- `/Users/shashank/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/android/src/main/kotlin/com/ultralytics/yolo/YOLOPlatformView.kt` — `sendStreamDataWithRetry`, sink null handling, EventChannel retry logic
+- `/Users/shashank/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/android/src/main/kotlin/com/ultralytics/yolo/YOLOPlatformViewFactory.kt` — `CustomStreamHandler`, channel naming, `activeViews` map
+- `/Users/shashank/.pub-cache/hosted/pub.dev/ultralytics_yolo-0.2.0/lib/yolo_view.dart` — `didUpdateWidget` EventChannel reconnect path, `_handleDetectionResults`, `_parseDetectionResults`
+- Project codebase: `lib/screens/live_object_detection/live_object_detection_screen.dart`, `lib/utils/yolo_coord_utils.dart`, `lib/screens/live_object_detection/widgets/trail_overlay.dart`, `memory-bank/progress.md`, `memory-bank/activeContext.md`
 
-### Secondary (MEDIUM confidence)
-- [ultralytics/yolo-flutter-app issue #255](https://github.com/ultralytics/yolo-flutter-app/issues/255) — `showOverlays` parameter availability confirmation
-- [ultralytics/yolo-flutter-app issue #105](https://github.com/ultralytics/yolo-flutter-app/issues/105) — coordinate offset bug on Android (platform-specific correction needed)
-- [OpenCV Track Object Movement — PyImageSearch](https://pyimagesearch.com/2015/09/21/opencv-track-object-movement/) — canonical 32-frame deque, `None` sentinel, thickness taper formula
-- [Ball Tracking in Sports — Roboflow](https://blog.roboflow.com/tracking-ball-sports-computer-vision/) — buffer-of-positions trail pattern, color interpolation
-- [Approached 60 FPS Object Detection on Mobile — Medium](https://medium.com/@cia1099/approached-60-fps-object-detection-without-any-frame-dropout-on-mobile-devices-with-flutter-6ab3c9dc5c4b) — `RepaintBoundary` + `CustomPaint` viability at detection frame rates
-- [Flutter CustomPainter Animation — Codemagic Blog](https://blog.codemagic.io/flutter-custom-painter/) — `withOpacity`, `canvas.drawCircle`, `canvas.drawLine`, `repaint` parameter
+### Secondary (MEDIUM confidence — official changelogs and confirmed issues)
+- [ultralytics/yolo-flutter-app GitHub Releases](https://github.com/ultralytics/yolo-flutter-app/releases) — v0.1.37 EventChannel subscription fix, v0.1.38 race condition fix, v0.1.46 SIGSEGV dispose fix, v0.2.0 release notes
+- [CHANGELOG.md v0.1.33](https://github.com/ultralytics/yolo-flutter-app/blob/main/CHANGELOG.md) — "onResult and onStreamingData callbacks would stop working after setState calls" — directly describes Pitfall 1
+- [Issue #344](https://github.com/ultralytics/yolo-flutter-app/issues/344) — silent model load failure; iOS vs Android path differences; platform confidence score differences
+- [Issue #393](https://github.com/ultralytics/yolo-flutter-app/issues/393) — `ModelLoadingException`; `build.gradle` `aaptOptions` requirement; `WidgetsFlutterBinding` ordering
+- [Issue #121](https://github.com/ultralytics/yolo-flutter-app/issues/121) — EventChannel `MissingPluginException` on Android; confirmed fixed in plugin updates
+- [Issue #18522](https://github.com/ultralytics/ultralytics/issues/18522) — YOLO11 TFLite crashes on Android GPU delegate
 
-### Tertiary (LOW confidence)
-- [Label Your Data — Object Tracking Overview](https://labelyourdata.com/articles/machine-learning/object-tracking) — ByteTrack, Kalman filter patterns (out of scope but useful for understanding the gap between POC and production)
+### Tertiary (LOW confidence — estimates pending device measurement)
+- Galaxy A32 inference FPS estimate (5-20fps): derived from Helio G80 CPU specs and YOLO11n model complexity; requires empirical measurement on device
+- [DeepWiki: ultralytics/yolo-flutter-app](https://deepwiki.com/ultralytics/yolo-flutter-app) — AI-generated summary of Android vs iOS platform differences; treated as directional only
 
 ---
-*Research completed: 2026-02-23*
+*Research completed: 2026-02-25*
 *Ready for roadmap: yes*

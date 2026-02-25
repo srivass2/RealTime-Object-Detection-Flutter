@@ -282,6 +282,38 @@ YOLO mode forces landscape in `initState` and restores portrait+landscape on `di
 
 ---
 
+## Android-Specific Patterns
+
+### 10. MethodChannel for Display Rotation Polling
+The `ultralytics_yolo` Android plugin does not distinguish landscape-left from landscape-right — it uses `Configuration.ORIENTATION_LANDSCAPE` uniformly. iOS handles this in the plugin via `AVCaptureVideoOrientation`. On Android, normalizedBox coordinates are relative to the camera sensor's native orientation, so when the device is in the "non-native" landscape direction, coordinates need a 180-degree rotation.
+
+**Platform code:** `MainActivity.kt` exposes a `"com.flare/display"` MethodChannel:
+```kotlin
+MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.flare/display")
+    .setMethodCallHandler { call, result ->
+        if (call.method == "getRotation") {
+            val rotation = (getSystemService(WINDOW_SERVICE) as WindowManager)
+                .defaultDisplay.rotation
+            result.success(rotation)  // Surface.ROTATION_0=0, _90=1, _180=2, _270=3
+        }
+    }
+```
+
+**Dart side:** `_pollDisplayRotation()` polls every 500ms via a `Timer.periodic`. When `_androidDisplayRotation == 3` (landscape-right), coordinates are flipped:
+```dart
+if (Platform.isAndroid && _androidDisplayRotation == 3) {
+  dx = 1.0 - dx;
+  dy = 1.0 - dy;
+}
+```
+
+**Note:** This pattern is untested on device as of 2026-02-25. It was designed based on reading the `ultralytics_yolo` plugin source (`YOLOView.kt:689`).
+
+### 11. aaptOptions for TFLite Model Integrity
+Android's `build.gradle` must include `aaptOptions { noCompress 'tflite' }` inside the `android {}` closure. Without this, Gradle compresses the `.tflite` file during APK packaging, which corrupts TFLite's memory-mapped loading. This was identified as a root cause candidate for `onResult` not firing on Android.
+
+---
+
 ## Key File Map
 
 | Concern | File(s) |

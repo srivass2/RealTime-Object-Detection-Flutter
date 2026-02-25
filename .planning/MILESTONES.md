@@ -41,3 +41,16 @@
 ---
 *Archived: 2026-02-24*
 
+## v1.2 — Android Verification (In Progress)
+
+**Goal:** Diagnose and fix the Android YOLO pipeline so detection, ball tracking, trail rendering, and the "Ball lost" badge all work on Galaxy A32 — achieving feature parity with the verified iOS behavior.
+
+**Context:** Recording analysis (2026-02-25) confirmed `onResult` callback is NOT firing on Android across 42 seconds of footage with ball clearly visible. Camera feed renders correctly. Root cause candidates: GPU delegate failure on Mali-G52, EventChannel subscription dropping after `setState`, or `aaptOptions` misconfiguration.
+
+**Phases:** 9–10 (2 phases)
+- Phase 9: Android Inference Diagnosis and Fix (DIAG-01 through DIAG-04)
+- Phase 10: Android Feature Parity Verification (PRTY-01 through PRTY-04)
+
+**Requirements:** 8 total (4 diagnosis, 4 parity verification)
+**Started:** 2026-02-25
+

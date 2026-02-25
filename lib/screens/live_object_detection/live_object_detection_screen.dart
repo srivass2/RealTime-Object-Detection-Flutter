@@ -63,6 +63,12 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
     trailWindow: const Duration(seconds: 1, milliseconds: 500),
   );
 
+  /// Android display rotation (Surface.ROTATION_*: 0=0°, 1=90°, 3=270°).
+  /// Used to correct normalizedBox coordinates for landscape direction.
+  /// iOS handles this in the plugin layer; this is Android-only.
+  static const _displayChannel = MethodChannel('com.flare/display');
+  int _androidDisplayRotation = 1; // default to rotation=1 (landscape-left)
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +80,11 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
+      // On Android, poll the display rotation so we can correct normalizedBox
+      // coordinates for the current landscape direction.
+      if (Platform.isAndroid) {
+        _pollDisplayRotation();
+      }
       return;
     }
 
@@ -94,8 +105,10 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
   // ---------------------------------------------------------------------------
 
   YOLOResult? _pickBestBallYolo(List<YOLOResult> results) {
-    // TRAK-03: Reject tennis-ball; accept Soccer ball and ball only.
-    const priority = {'Soccer ball': 0, 'ball': 1};
+    // TRAK-03: Accept Soccer ball and ball at top priority.
+    // tennis-ball accepted at lowest priority for Android TFLite where the
+    // model sometimes misclassifies due to image orientation issues.
+    const priority = {'Soccer ball': 0, 'ball': 1, 'tennis-ball': 2};
     final candidates = results
         .where((r) => priority.containsKey(r.className))
         .toList();
@@ -138,6 +151,37 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // Android display rotation polling.
+  // The ultralytics_yolo plugin checks Configuration.ORIENTATION_LANDSCAPE
+  // but does NOT distinguish landscape-left from landscape-right. We poll the
+  // display rotation via a MethodChannel so the Dart layer can compensate.
+  // ---------------------------------------------------------------------------
+
+  Timer? _rotationTimer;
+
+  Future<void> _pollDisplayRotation() async {
+    // Initial query.
+    await _queryRotation();
+    // Poll every 500ms to detect orientation flips.
+    _rotationTimer = Timer.periodic(
+      const Duration(milliseconds: 500),
+      (_) => _queryRotation(),
+    );
+  }
+
+  Future<void> _queryRotation() async {
+    try {
+      final rotation = await _displayChannel.invokeMethod<int>('getRotation');
+      if (rotation != null && rotation != _androidDisplayRotation) {
+        _androidDisplayRotation = rotation;
+        print('[DIAG-05] Android display rotation changed to $rotation');
+      }
+    } catch (e) {
+      // Silently ignore — channel may not be set up in tests.
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // SSD helper: pick highest-confidence ball result from detection list and
   // return its center as a normalized [0.0, 1.0] Offset.
   // ---------------------------------------------------------------------------
@@ -174,16 +218,68 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
               // our custom debug dot renders.
               showOverlays: false,
               onResult: (results) {
+                // DIAG-02: Confirm onResult fires and log result count.
+                print('[DIAG-02] onResult fired — ${results.length} detections');
+                // DIAG-03: Log className and confidence for every detection.
+                for (final r in results) {
+                  print('[DIAG-03] className=${r.className}, '
+                      'conf=${r.confidence.toStringAsFixed(3)}, '
+                      'box=(${r.normalizedBox.left.toStringAsFixed(3)}, '
+                      '${r.normalizedBox.top.toStringAsFixed(3)}, '
+                      '${r.normalizedBox.right.toStringAsFixed(3)}, '
+                      '${r.normalizedBox.bottom.toStringAsFixed(3)})');
+                }
+
                 // OVLY-04: Guard against setState-after-dispose.
                 if (!mounted) return;
 
                 final ball = _pickBestBallYolo(results);
+
+                // DIAG-04: Log filter result and orientation.
+                if (results.isNotEmpty) {
+                  final classCounts = <String, int>{};
+                  for (final r in results) {
+                    classCounts[r.className] =
+                        (classCounts[r.className] ?? 0) + 1;
+                  }
+                  final summary = classCounts.entries
+                      .map((e) => '${e.value}x ${e.key}')
+                      .join(', ');
+                  print('[DIAG-04] $summary → filter: '
+                      '${ball?.className ?? "NULL"}');
+                }
+
                 setState(() {
                   if (ball != null) {
-                    _tracker.update(Offset(
-                      ball.normalizedBox.center.dx,
-                      ball.normalizedBox.center.dy,
-                    ));
+                    var dx = ball.normalizedBox.center.dx;
+                    var dy = ball.normalizedBox.center.dy;
+
+                    // ANDROID COORDINATE CORRECTION:
+                    // The ultralytics_yolo Android plugin does not distinguish
+                    // landscape-left from landscape-right. It uses
+                    // Configuration.ORIENTATION_LANDSCAPE (YOLOView.kt:689)
+                    // and applies NO rotation in landscape mode. iOS rotates
+                    // frames via AVCaptureVideoOrientation before inference.
+                    //
+                    // On Android the normalizedBox coordinates are relative to
+                    // the camera sensor's native orientation. When the device
+                    // is in the "non-native" landscape direction, coordinates
+                    // need a 180° rotation: (1-x, 1-y).
+                    //
+                    // _androidDisplayRotation is polled via MethodChannel:
+                    // 1 = landscape (90° CCW, typically landscape-left)
+                    // 3 = landscape (270° CCW, typically landscape-right)
+                    if (Platform.isAndroid && _androidDisplayRotation == 3) {
+                      dx = 1.0 - dx;
+                      dy = 1.0 - dy;
+                    }
+                    if (Platform.isAndroid) {
+                      print('[DIAG-05] rotation=$_androidDisplayRotation '
+                          'pos=(${dx.toStringAsFixed(3)}, '
+                          '${dy.toStringAsFixed(3)})');
+                    }
+
+                    _tracker.update(Offset(dx, dy));
                   } else {
                     _tracker.markOccluded();
                   }
@@ -388,6 +484,7 @@ class _LiveObjectDetectionScreenState extends State<LiveObjectDetectionScreen> {
 
   @override
   void dispose() {
+    _rotationTimer?.cancel();
     _tracker.reset();
 
     // Restore orientations for the rest of the app.

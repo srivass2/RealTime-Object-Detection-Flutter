@@ -27,6 +27,10 @@ android {
     compileSdkVersion 36
     ndkVersion flutter.ndkVersion
 
+    aaptOptions {
+        noCompress 'tflite'
+    }
+
     configurations.all {
     exclude group: "org.tensorflow", module: "tensorflow-lite"
     exclude group: "org.tensorflow", module: "tensorflow-lite-api"
