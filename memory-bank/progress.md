@@ -13,6 +13,7 @@
 - `.gitignore` correctly excludes model binaries, build artifacts, and generated files
 - `CLAUDE.md` added to repo — comprehensive session instructions, build commands, architecture rules
 - `/update-memory` slash command added to `.claude/commands/`
+- 6 specialist Claude agents in `.claude/agents/` (untracked in git)
 
 ### Code Quality ✅
 - `flutter analyze` — 0 issues (clean)
@@ -52,8 +53,21 @@
 - **`IgnorePointer`** wraps trail `CustomPaint` — prevents overlay from consuming touch events
 - **Camera AR = 4:3** — `ultralytics_yolo` uses `.photo` session preset on iOS (4032×3024); fixed from 16:9 in Phase 7 Plan 03
 - **Device-verified** on iPhone 12 in both left and right landscape orientations (4 test recordings, 42 frames analyzed)
-- **Phase 7 verification videos** — `docs/recordings/ios/` now contains 4 "iPhone trail verification - Landscape …" videos (left ×2, right ×2)
-- **Phase 7 extracted frames** — `docs/frames/ios/frames_l3` (10 frames), `frames_l4` (9 frames), `frames_r1` (10 frames), `frames_r2` (13 frames); all committed to `docs/`. `result/` directory removed.
+- **Phase 7 verification videos** — `docs/recordings/ios/` contains 4 "iPhone trail verification - Landscape …" videos
+- **Phase 7 extracted frames** — `docs/frames/ios/frames_l3` (10), `frames_l4` (9), `frames_r1` (10), `frames_r2` (13) = 42 frames
+
+### "Ball lost" Badge (Phase 8) ✅
+- **`BallTracker.isBallLost`** — getter: returns `_consecutiveMissedFrames >= ballLostThreshold`
+- **`BallTracker.ballLostThreshold`** — `static const int = 3` (≈ 100 ms at 30 fps); satisfies PLSH-01 "within a few frames"
+- **Badge widget** — `Positioned(top: 12, right: 12)` in the YOLO Stack, wrapped in `IgnorePointer`; red background (`Colors.red.withValues(alpha: 0.85)`); white bold 12px "Ball lost" text
+- **Conditional rendering** — `if (_tracker.isBallLost)` guard; badge appears/disappears reactively via `setState` on each `onResult` call
+- **Stack nesting fixed** — `Positioned` is a direct Stack child; `IgnorePointer` is inside (not outside) `Positioned` (fix: `b7d7ed7`)
+- **Device-verified** on iPhone 12 — badge appears when ball leaves frame, clears on re-detection
+
+### v1.1 Milestone Archived ✅
+- All 3 phases complete: Phase 6 (overlay foundation), Phase 7 (trail), Phase 8 (polish — "Ball lost" badge)
+- Milestone archived with commit `26445b0`
+- `.planning/` directory reorganized; phase files moved under `.planning/milestones/`
 
 ### SSD MobileNet / TFLite Path ✅ (Frozen — No New Development)
 - `tflite_flutter: 0.11.0` integrated
@@ -78,7 +92,7 @@
 ### Evaluation Documentation ✅
 - `docs/screenshots/ios/` — iPhone detection screenshots: David free kick (4 images), kids soccerball (4 images)
 - `docs/screenshots/android/` — Android detection screenshots: David scenarios (3 images), kids soccerball (3 images)
-- `docs/recordings/ios/` — iPhone detection videos (4 Phase 1-5 recordings + 4 Phase 7 trail verification recordings — "iPhone trail verification - Landscape …")
+- `docs/recordings/ios/` — iPhone detection videos (4 Phase 1-5 recordings + 4 Phase 7 trail verification recordings)
 - `docs/recordings/android/` — Android detection video recordings (4 videos)
 - `docs/frames/ios/` — Phase 7 extracted verification frames: `frames_l3` (10), `frames_l4` (9), `frames_r1` (10), `frames_r2` (13) = 42 frames total
 - `report/report.html` — evaluation report (840 lines, generated 2026-02-23)
@@ -87,16 +101,21 @@
 
 ## What Is Incomplete or Needs Decisions
 
-### Phase 8: Polish 📋 (Not Started)
-**Status:** Next phase
-**Blocker:** Not yet planned
-"Ball lost" badge overlay — communicates tracking state to evaluator. Badge appears within a few frames of the ball leaving view or becoming occluded; disappears on re-detection.
-**Resolution:** Plan Phase 8 with `/gsd:plan-phase`, then execute.
+### Next Milestone Definition ⚠️ (Not Started)
+**Status:** v1.1 archived; no v1.2 defined yet
+**Blocker:** No decision made on next focus area
+**Candidates:** Android device verification, model accuracy deep-dive, performance profiling (latency/battery), demo build preparation, or declaring POC complete.
+**Resolution:** Define next milestone via `/gsd:new-milestone`.
 
 ### Testing on Galaxy A32 📱 (Blocked)
 **Status:** Blocked — Android SDK not configured on current Mac
 Android build succeeds but needs a machine with Android SDK or device connected via USB for deployment. Galaxy A32 coordinate accuracy with 4:3 AR must be verified empirically — the 4:3 fix was verified on iPhone 12 only.
 **Resolution:** Connect Android device when available; run YOLO path and observe trail accuracy.
+
+### `.claude/agents/` Not Committed 🗑️ (Minor)
+**Status:** 6 specialist agents created but untracked in git
+Agents: `orchestrator`, `yolo-detection-specialist`, `flutter-overlay-specialist`, `ml-evaluation-specialist`, `architecture-guardian`, `platform-build-specialist`.
+**Resolution:** `git add .claude/agents/ && git commit` if agents should persist in VCS.
 
 ### Unsplash API Key 🔑 (Configuration Gap)
 **Status:** Placeholder — does not affect detection
@@ -134,6 +153,8 @@ Falls through silently if `DETECTOR_BACKEND=mlkit` is passed. Should be removed 
 | `IgnorePointer` wraps trail overlay | Prevents CustomPaint from consuming touch events intended for YOLOView |
 | `shouldRepaint` always true in TrailOverlay | `List.unmodifiable()` creates new wrapper each call; RepaintBoundary is the real performance guard |
 | `TrackedPosition` uses `dart:ui` Offset only | Keeps model free of Flutter widget framework for pure-Dart unit testability |
+| **`ballLostThreshold = 3` frames** | **≈ 100 ms at 30 fps — satisfies "within a few frames" (PLSH-01) without false positives from momentary occlusion** |
+| **`Positioned` is direct Stack child; `IgnorePointer` inside** | **Flutter constraint: `Positioned` must be a direct child of `Stack`. Fixed in commit `b7d7ed7`.** |
 
 ---
 
@@ -149,6 +170,7 @@ Falls through silently if `DETECTOR_BACKEND=mlkit` is passed. Should be removed 
 | Debug dot overlay renders on YOLO path | ✅ Working (Y-axis offset fixed — camera AR = 4:3) |
 | Ball trail renders correctly | ✅ Verified on iPhone 12 — fading dots, connecting lines, occlusion gaps, auto-clear |
 | Trail coordinates accurate (no offset) | ✅ Confirmed with 4:3 camera AR fix (Phase 7 Plan 03) |
+| "Ball lost" badge communicates tracking state | ✅ Verified on iPhone 12 — appears within 3 frames, clears on re-detection |
 | `flutter analyze` passes (0 issues) | ✅ Confirmed |
 | `flutter test` passes (3/3) | ✅ Confirmed |
 | Architecture suitable to carry forward | ✅ Yes — clean separation, standard patterns |
